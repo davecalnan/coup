@@ -12,8 +12,7 @@ export const decode = (message: WebSocket.Data): ClientMessage => {
   throw new TypeError(`Invalid message type.`);
 };
 
-export const encode = (message: MessageData) =>
-  JSON.stringify(message, null, 2);
+export const encode = (message: any) => JSON.stringify(message, null, 2);
 
 export const not = (needle: any) => (straw: any) => straw !== needle;
 

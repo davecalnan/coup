@@ -1,4 +1,4 @@
-import { PlayerData, validate, player } from "../";
+import { PlayerData, RoomData, validate, player, CardData } from "../";
 
 export interface MessagePayload {
   [key: string]: unknown;
@@ -9,35 +9,64 @@ export interface MessageData {
   payload: MessagePayload;
 }
 
-export interface Context {
-  players: PlayerData[];
+export type MessageContext = RoomData & {
   you: PlayerData;
-  activePlayer?: PlayerData;
-}
+};
 
 export interface MessageWithContext extends MessageData {
-  context: Context;
+  context: MessageContext;
 }
+
+export interface ServerMessageData extends MessageData {}
+
+export type ServerMessage = ServerMessageWithoutContext & {
+  context: MessageContext;
+};
 
 /**
  * Client Messages
  */
 
-export type ClientMessage = MessageData | HelloMessage | NextTurnMessage;
+export type ClientMessage =
+  | JoinGameMessage
+  | LeaveGameMessage
+  | StartGameMessage
+  | NextTurnMessage;
 
-export interface HelloMessage extends MessageData {
-  type: "Hello";
+export interface JoinGameMessage extends MessageData {
+  type: "JoinGame";
   payload: {
     name: string;
+    room: string;
   };
 }
 
-export const isHelloMessage = (message: MessageData): message is HelloMessage =>
+export interface LeaveGameMessage extends MessageData {
+  type: "LeaveGame";
+}
+
+export const isJoinGameMessage = (
+  message: MessageData
+): message is JoinGameMessage =>
   validate(message, {
-    type: "Hello",
+    type: "JoinGame",
     payload: {
-      name: "string"
-    }
+      name: "string",
+      room: "string",
+    },
+  });
+
+export interface StartGameMessage extends MessageData {
+  type: "StartGame";
+  payload: {};
+}
+
+export const isStartGameMessage = (
+  message: MessageData
+): message is StartGameMessage =>
+  validate(message, {
+    type: "StartGame",
+    payload: {},
   });
 
 export interface NextTurnMessage extends MessageData {
@@ -50,24 +79,42 @@ export const isNextTurnMessage = (
 ): message is NextTurnMessage =>
   validate(message, {
     type: "NextTurn",
-    payload: {}
+    payload: {},
   });
 
 /**
- * Server Message
+ * Server Messages
  */
 
 export type ServerMessageWithoutContext =
+  | UnauthorisedActionMessage
   | NewPlayerMessage
+  | NameAlreadyTakenMessage
   | PlayerLeftMessage
-  | NewTurnMessage;
-export type ServerMessage = ServerMessageWithoutContext & { context: Context };
+  | GameStartedMessage
+  | NewTurnMessage
+  | NewHandMessage;
 
-export interface NewPlayerMessage extends MessageData {
-  type: "NewPlayer";
+export interface UnauthorisedActionMessage extends ServerMessageData {
+  type: "UnauthorisedAction";
   payload: {
-    player: PlayerData;
+    message: string;
   };
+}
+
+export const UnauthorisedActionMessage = (
+  message: MessageData
+): message is UnauthorisedActionMessage =>
+  validate(message, {
+    type: "UnauthorisedAction",
+    payload: {
+      message: "string",
+    },
+  });
+
+export interface NewPlayerMessage extends ServerMessageData {
+  type: "NewPlayer";
+  payload: {};
 }
 
 export const isNewPlayerMessage = (
@@ -75,12 +122,27 @@ export const isNewPlayerMessage = (
 ): message is NewPlayerMessage =>
   validate(message, {
     type: "NewPlayer",
-    payload: {
-      player
-    }
+    payload: {},
   });
 
-export interface PlayerLeftMessage extends MessageData {
+export interface NameAlreadyTakenMessage extends ServerMessageData {
+  type: "NameAlreadyTaken";
+  payload: {
+    player: PlayerData;
+  };
+}
+
+export const isNameAlreadyTakenMessage = (
+  message: MessageData
+): message is NameAlreadyTakenMessage =>
+  validate(message, {
+    type: "NameAlreadyTaken",
+    payload: {
+      player,
+    },
+  });
+
+export interface PlayerLeftMessage extends ServerMessageData {
   type: "PlayerLeft";
   payload: {
     player: PlayerData;
@@ -93,11 +155,24 @@ export const isPlayerLeftMessage = (
   validate(message, {
     type: "PlayerLeft",
     payload: {
-      player
-    }
+      player,
+    },
   });
 
-export interface NewTurnMessage extends MessageData {
+export interface GameStartedMessage extends ServerMessageData {
+  type: "GameStarted";
+  payload: {};
+}
+
+export const isGameStartedMessage = (
+  message: MessageData
+): message is GameStartedMessage =>
+  validate(message, {
+    type: "GameStarted",
+    payload: {},
+  });
+
+export interface NewTurnMessage extends ServerMessageData {
   type: "NewTurn";
   payload: {};
 }
@@ -107,5 +182,22 @@ export const isNewTurnMessage = (
 ): message is NewTurnMessage =>
   validate(message, {
     type: "NewTurn",
-    payload: {}
+    payload: {},
+  });
+
+export interface NewHandMessage extends ServerMessageData {
+  type: "NewHand";
+  payload: {
+    hand: CardData[];
+  };
+}
+
+export const isNewHandMessage = (
+  message: MessageData
+): message is NewHandMessage =>
+  validate(message, {
+    type: "NewHand",
+    payload: {
+      hand: "array",
+    },
   });

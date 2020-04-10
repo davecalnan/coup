@@ -1,29 +1,29 @@
 import {
   MessagePayload,
   MessageData,
-  Context,
+  MessageContext,
   MessageWithContext,
-  encode
+  encode,
 } from "./";
 
 export class Message {
   public type: string;
   public payload: MessagePayload;
-  public context: Context;
+  public context: MessageContext;
 
-  constructor({ type, payload }: MessageData, context: Context) {
+  constructor({ type, payload }: MessageData, context: MessageContext) {
     this.type = type;
     this.payload = payload;
     this.context = context;
   }
 
-  static make = (message: MessageData, context: Context) =>
+  static make = (message: MessageData, context: MessageContext) =>
     new Message(message, context);
 
   toJson = (): MessageWithContext => ({
     type: this.type,
     payload: this.payload,
-    context: this.context
+    context: this.context,
   });
 
   toString = (): string => encode(this.toJson());

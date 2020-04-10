@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 
-import { Message, Room, ServerMessageWithoutContext } from "./";
+import { Message, Room, ServerMessageWithoutContext, Card } from "./";
 
 export interface PlayerData {
   name: string;
@@ -10,17 +10,24 @@ export interface PlayerData {
 export class Player {
   public room: Room;
   public connection: WebSocket;
+
   public name: string;
+  public cards: Card[] = [];
+
   private _isActive: boolean = false;
 
   public get isActive() {
     return this._isActive;
   }
 
+  public get hand() {
+    return this.cards.map((card) => card.toJson());
+  }
+
   constructor({
     room,
     connection,
-    name
+    name,
   }: {
     room: Room;
     connection: WebSocket;
@@ -35,7 +42,7 @@ export class Player {
     this.connection.send(
       Message.make(message, {
         ...this.room.toJson(),
-        you: this.toJson()
+        you: this.toJson(),
       }).toString()
     );
 
@@ -46,8 +53,14 @@ export class Player {
   setActive = () => (this._isActive = true);
   setInactive = () => (this._isActive = false);
 
+  giveCards = (...cards: Card[]) => {
+    cards.forEach((card) => (card.player = this));
+
+    return this.cards.push(...cards);
+  };
+
   toJson = (): PlayerData => ({
     name: this.name,
-    isActive: this.isActive
+    isActive: this.isActive,
   });
 }
