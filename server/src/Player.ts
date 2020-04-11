@@ -1,8 +1,10 @@
 import WebSocket from "ws";
+import { v4 as uuid } from "uuid";
 
 import { Message, Room, ServerMessageWithoutContext, Card } from "./";
 
 export interface PlayerData {
+  id: string;
   name: string;
   isActive: boolean;
   coins: number;
@@ -12,6 +14,7 @@ export class Player {
   public room: Room;
   public connection: WebSocket;
 
+  public id: string = uuid();
   public name: string;
   public cards: Card[] = [];
   public coins: number = 0;
@@ -62,13 +65,14 @@ export class Player {
   };
 
   /**
-   * Increases or decreases a player's income.
+   * Increase or decrease a player's income.
    *
    * @param change A positive or negative integer.
    */
   updateCoinsBy = (change: number) => (this.coins = this.coins + change);
 
   toJson = (): PlayerData => ({
+    id: this.id,
     name: this.name,
     isActive: this.isActive,
     coins: this.coins,

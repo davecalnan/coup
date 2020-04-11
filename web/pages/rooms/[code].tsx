@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import Router from "next/router";
 
-import { StartGameMessage } from "server/src";
+import { StartGameMessage, isPlayerCanBlockMessage } from "server/src";
 
 import { Players, PlayerHand, Button } from "../../components";
 import {
@@ -22,6 +22,11 @@ const Room = () => {
 
   const game = useGame();
 
+  require("react").useEffect(
+    () => console.log("game.yourStatus:", game.yourStatus),
+    [game.yourStatus]
+  );
+
   if (!game.isConnected) {
     return <div>No connection.</div>;
   }
@@ -40,7 +45,6 @@ const Room = () => {
   };
 
   const handleAction = (action: PlayerAction) => {
-    console.log("action.needsTarget:", action.needsTarget);
     let target = undefined;
     if (action.needsTarget) {
       const name = prompt(`Who do you want to target?`);
@@ -66,7 +70,7 @@ const Room = () => {
                   !game.isCreator &&
                   `Waiting for ${game.creator?.name} to start the game.`}
               </p>
-              {game.youCanStart && (
+              {game.yourStatus === "canStartGame" && (
                 <Button className="mt-4" onClick={startGame} primary>
                   Start Game
                 </Button>
@@ -75,24 +79,55 @@ const Room = () => {
           )}
           {game.status === "playingGame" && (
             <div>
-              <p>{game.isYourTurn && "It's your turn!"}</p>
-              <p>
-                {!game.isYourTurn && `It's ${game.activePlayer?.name}'s turn!`}
-              </p>
-              <div className="flex flex-wrap">
-                {game.isYourTurn &&
-                  Object.values(game.actions).map((action) => (
-                    <Button
-                      key={action.type}
-                      className="mt-4 mr-4"
-                      onClick={() => handleAction(action)}
-                      disabled={action.isDisabled}
-                      destructive={action.isBluff}
-                    >
-                      {action.label}
-                    </Button>
-                  ))}
-              </div>
+              <p>{game.yourStatus === "idle" && `Waiting for your turn.`}</p>
+              {game.yourStatus === "takeTurn" && (
+                <>
+                  <p>It's your turn!</p>
+                  <div className="flex flex-wrap">
+                    {game.yourStatus === "takeTurn" &&
+                      Object.values(game.actions).map((action) => (
+                        <Button
+                          key={action.type}
+                          className="mt-4 mr-4"
+                          onClick={() => handleAction(action)}
+                          disabled={action.isDisabled}
+                          destructive={action.isBluff}
+                        >
+                          {action.label}
+                        </Button>
+                      ))}
+                  </div>
+                </>
+              )}
+              {game.yourStatus === "counteract" &&
+                !!game.lastMessage &&
+                isPlayerCanBlockMessage(game.lastMessage) && (
+                  <>
+                    <p>
+                      Want to block {game.activePlayer?.name}'s{" "}
+                      {game.lastMessage.payload.action.type.toLowerCase()}?
+                    </p>
+                    <div className="flex">
+                      {game.lastMessage.payload.action.type === "Steal" &&
+                        Object.values(game.counteractions.steal).map(
+                          (action) => (
+                            <Button
+                              key={`${action.type}-${action.with}`}
+                              className="mt-4 mr-4"
+                              onClick={action}
+                              disabled={action.isDisabled}
+                              destructive={action.isBluff}
+                            >
+                              {action.label}
+                            </Button>
+                          )
+                        )}
+                      <Button className="mt-4 mr-4" onClick={game.allow}>
+                        Don't Block
+                      </Button>
+                    </div>
+                  </>
+                )}
             </div>
           )}
         </div>

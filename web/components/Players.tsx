@@ -13,8 +13,7 @@ export const Players = () => {
     <Card className="w-64" title="Players">
       <ul className="list-disc list-inside">
         {game?.players?.map((player, index) => {
-          const isCurrentPlayer = player.name === game?.you?.name;
-          const isCreator = player.name === game?.creator?.name;
+          const isCurrentPlayer = player.id === game?.you?.id;
 
           return (
             <li
@@ -26,7 +25,6 @@ export const Players = () => {
             >
               <span>
                 {player.name}
-                {isCreator && " [VIP]"}
                 {isCurrentPlayer && " (you)"}
               </span>
               <span>

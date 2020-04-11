@@ -7,14 +7,21 @@ import {
   ClientMessage,
   isStartGameMessage,
   pickRandom,
-} from "./";
-import {
   isPlayerActionMessage,
   isIncomePlayerAction,
   isForeignAidPlayerAction,
   isTaxPlayerAction,
   isStealPlayerAction,
-} from "./types";
+  isCoupPlayerAction,
+  StartGameMessage,
+  PlayerActionMessage,
+  isBlockActionMessage,
+  isConfirmActionMessage,
+  PlayerCanBlockMessage,
+  BlockActionMessage,
+  ConfirmActionMessage,
+  isConfirmStealAction,
+} from "./";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -37,6 +44,8 @@ export type RoomConstructor = {
 };
 
 export class Room {
+  public onEmpty?: () => void;
+
   public status: RoomStatus = "waitingForPlayers";
   public code: string;
 
@@ -93,6 +102,10 @@ export class Room {
         player: player.toJson(),
       },
     });
+
+    if (this.players.length === 0) {
+      if (typeof this.onEmpty === "function") this.onEmpty();
+    }
   };
 
   broadcast = (
@@ -123,7 +136,7 @@ export class Room {
 
   cycleActivePlayer = (): Player => {
     if (!this.activePlayer) {
-      return this.setActivePlayer(this.players[0]);
+      return this.setActivePlayer(pickRandom(this.players));
     }
 
     const currentActivePlayerIndex = this.players.indexOf(this.activePlayer);
@@ -160,9 +173,7 @@ export class Room {
   distributeCoins = () =>
     this.players.forEach((player) => player.updateCoinsBy(2));
 
-  pickStartingPlayer = () => this.setActivePlayer(pickRandom(this.players));
-
-  startGame = (message: ClientMessage, player: Player) => {
+  startGame = (message: StartGameMessage, player: Player) => {
     const isCreator = player.name === this.creator?.name;
 
     if (!isCreator) {
@@ -187,7 +198,6 @@ export class Room {
 
     this.dealCards();
     this.distributeCoins();
-    this.pickStartingPlayer();
     this.setStatus("playingGame");
 
     this.broadcast((player) => ({
@@ -201,12 +211,14 @@ export class Room {
       type: "GameStarted",
       payload: {},
     });
+
+    this.nextTurn();
   };
 
   findTarget = (target: PlayerData) =>
     this.players.find((player) => player.name === target.name);
 
-  takePlayerAction = (message: ClientMessage, player: Player) => {
+  handlePlayerAction = (message: PlayerActionMessage, player: Player) => {
     if (player !== this.activePlayer) {
       return player.send({
         type: "UnauthorisedAction",
@@ -215,10 +227,48 @@ export class Room {
         },
       });
     }
+
+    if (!isCoupPlayerAction(message) && player.coins >= 10) {
+      return player.send({
+        type: "UnauthorisedAction",
+        payload: {
+          message: "You have ten or more coins and can must coup.",
+        },
+      });
+    }
+
+    if (message.payload.action.type === "Steal") {
+      const broadcast: PlayerCanBlockMessage = {
+        type: "PlayerCanBlock",
+        payload: {
+          action: {
+            type: message.payload.action.type,
+            target: message.payload.action.target,
+            player: player.toJson(),
+          },
+        },
+      };
+
+      return this.broadcast(broadcast);
+    }
+
     if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
     if (isForeignAidPlayerAction(message)) player.updateCoinsBy(2);
     if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
-    if (isStealPlayerAction(message)) {
+    // if (isStealPlayerAction(message)) {
+    //   player.updateCoinsBy(2);
+    //   this.findTarget(message.payload.action.target)?.updateCoinsBy(-2);
+    // }
+
+    this.nextTurn();
+  };
+
+  handleBlockAction = (message: BlockActionMessage, player: Player) => {
+    this.nextTurn();
+  };
+
+  handleConfirmAction = (message: ConfirmActionMessage, player: Player) => {
+    if (isConfirmStealAction(message)) {
       player.updateCoinsBy(2);
       this.findTarget(message.payload.action.target)?.updateCoinsBy(-2);
     }
@@ -228,7 +278,11 @@ export class Room {
 
   handleMessage = (message: ClientMessage, player: Player) => {
     if (isStartGameMessage(message)) this.startGame(message, player);
-    if (isPlayerActionMessage(message)) this.takePlayerAction(message, player);
+    if (isPlayerActionMessage(message))
+      this.handlePlayerAction(message, player);
+    if (isBlockActionMessage(message)) this.handleBlockAction(message, player);
+    if (isConfirmActionMessage(message))
+      this.handleConfirmAction(message, player);
   };
 
   toJson = (): RoomData => ({

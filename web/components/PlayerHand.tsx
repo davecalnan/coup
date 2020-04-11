@@ -17,7 +17,7 @@ export const PlayerHand = () => {
             card={card}
             className={classNames(
               "transition duration-500 ease-in-out transform hover:-translate-y-2 hover:scale-110 hover:z-10 hover:shadow-lg",
-              index > 0 && "-mr-4"
+              index > 0 && "-mr-4 -mt-1"
             )}
           />
         ))}

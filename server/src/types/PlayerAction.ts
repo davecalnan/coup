@@ -116,6 +116,7 @@ export interface AssassinatePlayerAction extends BasePlayerAction {
   payload: {
     action: {
       type: "Assassinate";
+      target: PlayerData;
     };
   };
 }
@@ -128,6 +129,7 @@ export const isAssassinatePlayerAction = (
     payload: {
       action: {
         type: "Assassinate",
+        target: player,
       },
     },
   });

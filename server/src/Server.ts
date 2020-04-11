@@ -29,7 +29,9 @@ wss.on("connection", (ws) => {
         } else {
           room = new Room({ code: message.payload.room });
           rooms.push(room);
-          console.log(`[WSS] Creating new room: ${room.code}. Rooms:`);
+
+          const roomIndex = rooms.indexOf(room);
+          room.onEmpty = () => rooms.splice(roomIndex, 1);
         }
 
         player = new Player({
@@ -38,7 +40,6 @@ wss.on("connection", (ws) => {
           name: message.payload.name,
         });
 
-        console.log(`[WSS] Adding player ${player.name} to room ${room.code}`);
         room.addPlayer(player);
 
         ws.on("close", player.exit);
