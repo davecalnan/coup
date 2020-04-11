@@ -1,12 +1,10 @@
 import classNames from "classnames";
 
 import { PlayingCard } from "./";
-import { useGame } from "../hooks";
+import { useGameContext } from "../hooks";
 
 export const PlayerHand = () => {
-  const game = useGame();
-
-  console.log("game?.hand:", game?.hand);
+  const game = useGameContext();
 
   if (!game?.hand) return null;
 

@@ -6,8 +6,15 @@ import {
   Deck,
   ClientMessage,
   isStartGameMessage,
+  pickRandom,
 } from "./";
-import { GameStartedMessage } from "./types";
+import {
+  isPlayerActionMessage,
+  isIncomePlayerAction,
+  isForeignAidPlayerAction,
+  isTaxPlayerAction,
+  isStealPlayerAction,
+} from "./types";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -43,6 +50,8 @@ export class Room {
   constructor({ code }: RoomConstructor) {
     this.code = code;
   }
+
+  setStatus = (status: RoomStatus) => (this.status = status);
 
   addPlayer = (player: Player) => {
     const isFirstPlayer = this.players.length === 0;
@@ -129,11 +138,13 @@ export class Room {
   };
 
   nextTurn = () => {
-    this.cycleActivePlayer();
+    const player = this.cycleActivePlayer();
 
     this.broadcast({
       type: "NewTurn",
-      payload: {},
+      payload: {
+        player: player.toJson(),
+      },
     });
   };
 
@@ -145,6 +156,11 @@ export class Room {
       )
     );
   };
+
+  distributeCoins = () =>
+    this.players.forEach((player) => player.updateCoinsBy(2));
+
+  pickStartingPlayer = () => this.setActivePlayer(pickRandom(this.players));
 
   startGame = (message: ClientMessage, player: Player) => {
     const isCreator = player.name === this.creator?.name;
@@ -170,8 +186,9 @@ export class Room {
     }
 
     this.dealCards();
-
-    this.status = "playingGame";
+    this.distributeCoins();
+    this.pickStartingPlayer();
+    this.setStatus("playingGame");
 
     this.broadcast((player) => ({
       type: "NewHand",
@@ -186,8 +203,32 @@ export class Room {
     });
   };
 
-  handleMessage = async (message: ClientMessage, player: Player) => {
+  findTarget = (target: PlayerData) =>
+    this.players.find((player) => player.name === target.name);
+
+  takePlayerAction = (message: ClientMessage, player: Player) => {
+    if (player !== this.activePlayer) {
+      return player.send({
+        type: "UnauthorisedAction",
+        payload: {
+          message: "It is not your turn.",
+        },
+      });
+    }
+    if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
+    if (isForeignAidPlayerAction(message)) player.updateCoinsBy(2);
+    if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
+    if (isStealPlayerAction(message)) {
+      player.updateCoinsBy(2);
+      this.findTarget(message.payload.action.target)?.updateCoinsBy(-2);
+    }
+
+    this.nextTurn();
+  };
+
+  handleMessage = (message: ClientMessage, player: Player) => {
     if (isStartGameMessage(message)) this.startGame(message, player);
+    if (isPlayerActionMessage(message)) this.takePlayerAction(message, player);
   };
 
   toJson = (): RoomData => ({

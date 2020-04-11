@@ -1,4 +1,11 @@
-import { PlayerData, RoomData, validate, player, CardData } from "../";
+import {
+  PlayerData,
+  RoomData,
+  validate,
+  player,
+  CardData,
+  PlayerActionMessage,
+} from "../";
 
 export interface MessagePayload {
   [key: string]: unknown;
@@ -31,7 +38,7 @@ export type ClientMessage =
   | JoinGameMessage
   | LeaveGameMessage
   | StartGameMessage
-  | NextTurnMessage;
+  | PlayerActionMessage;
 
 export interface JoinGameMessage extends MessageData {
   type: "JoinGame";
@@ -39,10 +46,6 @@ export interface JoinGameMessage extends MessageData {
     name: string;
     room: string;
   };
-}
-
-export interface LeaveGameMessage extends MessageData {
-  type: "LeaveGame";
 }
 
 export const isJoinGameMessage = (
@@ -56,6 +59,18 @@ export const isJoinGameMessage = (
     },
   });
 
+export interface LeaveGameMessage extends MessageData {
+  type: "LeaveGame";
+}
+
+export const isLeaveGameMessage = (
+  message: MessageData
+): message is LeaveGameMessage =>
+  validate(message, {
+    type: "LeaveGame",
+    payload: {},
+  });
+
 export interface StartGameMessage extends MessageData {
   type: "StartGame";
   payload: {};
@@ -66,19 +81,6 @@ export const isStartGameMessage = (
 ): message is StartGameMessage =>
   validate(message, {
     type: "StartGame",
-    payload: {},
-  });
-
-export interface NextTurnMessage extends MessageData {
-  type: "NextTurn";
-  payload: {};
-}
-
-export const isNextTurnMessage = (
-  message: MessageData
-): message is NextTurnMessage =>
-  validate(message, {
-    type: "NextTurn",
     payload: {},
   });
 
@@ -174,7 +176,9 @@ export const isGameStartedMessage = (
 
 export interface NewTurnMessage extends ServerMessageData {
   type: "NewTurn";
-  payload: {};
+  payload: {
+    player: PlayerData;
+  };
 }
 
 export const isNewTurnMessage = (
@@ -182,7 +186,9 @@ export const isNewTurnMessage = (
 ): message is NewTurnMessage =>
   validate(message, {
     type: "NewTurn",
-    payload: {},
+    payload: {
+      player,
+    },
   });
 
 export interface NewHandMessage extends ServerMessageData {

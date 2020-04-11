@@ -1,10 +1,15 @@
 import { useEffect } from "react";
 import Router from "next/router";
 
-import { NextTurnMessage, StartGameMessage } from "server/src";
+import { StartGameMessage } from "server/src";
 
-import { WaitingRoom, Players, PlayerHand } from "../../components";
-import { useWebSocket, GameProvider, useLocalStorage } from "../../hooks";
+import { Players, PlayerHand, Button } from "../../components";
+import {
+  useGame,
+  GameProvider,
+  useLocalStorage,
+  PlayerAction,
+} from "../../hooks";
 
 const Room = () => {
   const name = useLocalStorage("name");
@@ -15,9 +20,9 @@ const Room = () => {
     }
   }, []);
 
-  const { ws, game } = useWebSocket();
+  const game = useGame();
 
-  if (!ws) {
+  if (!game.isConnected) {
     return <div>No connection.</div>;
   }
 
@@ -34,20 +39,16 @@ const Room = () => {
     game.send(message);
   };
 
-  const isCreator = game.creator.name === game.you.name;
-  const hasEnoughPlayers = game.players.length >= game.minimumPlayers;
-  const canStartGame = isCreator && hasEnoughPlayers;
+  const handleAction = (action: PlayerAction) => {
+    console.log("action.needsTarget:", action.needsTarget);
+    let target = undefined;
+    if (action.needsTarget) {
+      const name = prompt(`Who do you want to target?`);
+      target = game?.players?.find((player) => player.name === name);
+    }
 
-  const nextTurn = () => {
-    const message: NextTurnMessage = {
-      type: "NextTurn",
-      payload: {},
-    };
-
-    game.send(message);
+    action(target);
   };
-
-  const exit = () => ws.close();
 
   return (
     <GameProvider value={game}>
@@ -56,36 +57,51 @@ const Room = () => {
           {game.status === "waitingForPlayers" && (
             <div>
               <p>
-                {!hasEnoughPlayers &&
+                {!game.hasEnoughPlayers &&
                   "Waiting for more players to start the game."}
-                {hasEnoughPlayers &&
-                  isCreator &&
+                {game.hasEnoughPlayers &&
+                  game.isCreator &&
                   "You can start the game now or wait for more players."}
-                {hasEnoughPlayers &&
-                  !isCreator &&
-                  `Waiting for ${game.creator.name} to start the game.`}
+                {game.hasEnoughPlayers &&
+                  !game.isCreator &&
+                  `Waiting for ${game.creator?.name} to start the game.`}
               </p>
-              {canStartGame && (
-                <button
-                  className="mt-4 px-3 py-2 rounded shadow bg-indigo-500 text-white"
-                  onClick={startGame}
-                >
+              {game.youCanStart && (
+                <Button className="mt-4" onClick={startGame} primary>
                   Start Game
-                </button>
+                </Button>
               )}
             </div>
           )}
-          {game.status === "playingGame" && <div>The game is underway!</div>}
+          {game.status === "playingGame" && (
+            <div>
+              <p>{game.isYourTurn && "It's your turn!"}</p>
+              <p>
+                {!game.isYourTurn && `It's ${game.activePlayer?.name}'s turn!`}
+              </p>
+              <div className="flex flex-wrap">
+                {game.isYourTurn &&
+                  Object.values(game.actions).map((action) => (
+                    <Button
+                      key={action.type}
+                      className="mt-4 mr-4"
+                      onClick={() => handleAction(action)}
+                      disabled={action.isDisabled}
+                      destructive={action.isBluff}
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <Players />
           <div>
-            <button
-              className="mt-4 px-3 py-2 rounded shadow bg-red-500 text-white"
-              onClick={exit}
-            >
+            <Button className="mt-4" onClick={game.leave} destructive>
               Leave game
-            </button>
+            </Button>
           </div>
         </div>
       </div>

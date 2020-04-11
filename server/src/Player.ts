@@ -5,6 +5,7 @@ import { Message, Room, ServerMessageWithoutContext, Card } from "./";
 export interface PlayerData {
   name: string;
   isActive: boolean;
+  coins: number;
 }
 
 export class Player {
@@ -13,6 +14,7 @@ export class Player {
 
   public name: string;
   public cards: Card[] = [];
+  public coins: number = 0;
 
   private _isActive: boolean = false;
 
@@ -59,8 +61,16 @@ export class Player {
     return this.cards.push(...cards);
   };
 
+  /**
+   * Increases or decreases a player's income.
+   *
+   * @param change A positive or negative integer.
+   */
+  updateCoinsBy = (change: number) => (this.coins = this.coins + change);
+
   toJson = (): PlayerData => ({
     name: this.name,
     isActive: this.isActive,
+    coins: this.coins,
   });
 }

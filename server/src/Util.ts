@@ -16,7 +16,11 @@ export const encode = (message: any) => JSON.stringify(message, null, 2);
 
 export const not = (needle: any) => (straw: any) => straw !== needle;
 
+export const pickRandom = (array: any[]) =>
+  array[Math.floor(Math.random() * array.length)];
+
 export type ShapeObjectValue =
+  | string
   | "string"
   | "number"
   | "boolean"
@@ -45,6 +49,10 @@ export const validateObjectShape = (
       return Array.isArray(object[key]);
     }
 
+    if (typeof type === "string") {
+      return object[key] === type;
+    }
+
     if (typeof object[key] === "object") {
       return validateObjectShape(object[key], type);
     }
@@ -57,7 +65,7 @@ export type PlayerShape = {
 
 export const player: PlayerShape = {
   name: "string",
-  isActive: "boolean"
+  isActive: "boolean",
 };
 
 export const validate = (
