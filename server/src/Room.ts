@@ -22,6 +22,12 @@ import {
   ConfirmActionMessage,
   isConfirmStealAction,
 } from "./";
+import {
+  isAssassinatePlayerAction,
+  ForeignAidPlayerAction,
+  StealPlayerAction,
+  AssassinatePlayerAction,
+} from "./types";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -237,13 +243,22 @@ export class Room {
       });
     }
 
-    if (message.payload.action.type === "Steal") {
+    const anyoneCanBlock = isForeignAidPlayerAction(message);
+
+    const playerCanBlock =
+      isStealPlayerAction(message) || isAssassinatePlayerAction(message);
+
+    if (playerCanBlock) {
+      const blockableMessage = message as
+        | StealPlayerAction
+        | AssassinatePlayerAction;
+
       const broadcast: PlayerCanBlockMessage = {
         type: "PlayerCanBlock",
         payload: {
           action: {
-            type: message.payload.action.type,
-            target: message.payload.action.target,
+            type: blockableMessage.payload.action.type,
+            target: blockableMessage.payload.action.target,
             player: player.toJson(),
           },
         },
@@ -255,10 +270,6 @@ export class Room {
     if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
     if (isForeignAidPlayerAction(message)) player.updateCoinsBy(2);
     if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
-    // if (isStealPlayerAction(message)) {
-    //   player.updateCoinsBy(2);
-    //   this.findPlayer(message.payload.action.target)?.updateCoinsBy(-2);
-    // }
 
     this.nextTurn();
   };

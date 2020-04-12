@@ -16,6 +16,7 @@ import {
   ConfirmActionMessage,
   PlayerCanBlockMessage,
   WithContext,
+  BlockActionMessage,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
@@ -43,11 +44,11 @@ export type PlayerActions = {
 };
 
 export type BlockActionMeta = {
-  type: "Steal";
+  type: BlockActionMessage["payload"]["action"]["type"];
   label: string;
   target: PlayerData;
   player: PlayerData;
-  blockedWith: "captain" | "ambassador";
+  blockedWith: BlockActionMessage["payload"]["action"]["blockedWith"];
   isBluff: boolean;
   isDisabled: boolean;
 };
@@ -224,7 +225,7 @@ export const useGame = (): Game => {
                 blockedWith,
               },
             },
-          }),
+          } as BlockActionMessage),
         { type, label, target, player, blockedWith, isBluff, isDisabled }
       ),
     [send]

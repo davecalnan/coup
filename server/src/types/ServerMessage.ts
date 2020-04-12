@@ -170,10 +170,16 @@ export const isAnyoneCanBlockMessage = (
 export interface PlayerCanBlockMessage extends ServerMessageData {
   type: "PlayerCanBlock";
   payload: {
-    action: Pick<
-      (StealPlayerAction | AssassinatePlayerAction)["payload"]["action"],
-      "type" | "target"
-    > & {
+    action: {
+      type: (
+        | ForeignAidPlayerAction
+        | StealPlayerAction
+        | AssassinatePlayerAction
+      )["payload"]["action"]["type"];
+      target?: (
+        | StealPlayerAction
+        | AssassinatePlayerAction
+      )["payload"]["action"]["target"];
       player: PlayerData;
     };
   };
