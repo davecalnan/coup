@@ -17,9 +17,11 @@ import {
 
 export interface ServerMessageData extends MessageData {}
 
-export type ServerMessage = ServerMessageWithoutContext & {
+export type WithContext<T extends ServerMessageData> = T & {
   context: MessageContext;
 };
+
+export type ServerMessage = WithContext<ServerMessageWithoutContext>;
 
 export type ServerMessageWithoutContext =
   | UnauthorisedActionMessage

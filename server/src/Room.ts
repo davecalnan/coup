@@ -215,7 +215,7 @@ export class Room {
     this.nextTurn();
   };
 
-  findTarget = (target: PlayerData) =>
+  findPlayer = (target: PlayerData) =>
     this.players.find((player) => player.name === target.name);
 
   handlePlayerAction = (message: PlayerActionMessage, player: Player) => {
@@ -257,7 +257,7 @@ export class Room {
     if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
     // if (isStealPlayerAction(message)) {
     //   player.updateCoinsBy(2);
-    //   this.findTarget(message.payload.action.target)?.updateCoinsBy(-2);
+    //   this.findPlayer(message.payload.action.target)?.updateCoinsBy(-2);
     // }
 
     this.nextTurn();
@@ -269,8 +269,8 @@ export class Room {
 
   handleConfirmAction = (message: ConfirmActionMessage, player: Player) => {
     if (isConfirmStealAction(message)) {
-      player.updateCoinsBy(2);
-      this.findTarget(message.payload.action.target)?.updateCoinsBy(-2);
+      this.findPlayer(message.payload.action.player)?.updateCoinsBy(2);
+      this.findPlayer(message.payload.action.target)?.updateCoinsBy(-2);
     }
 
     this.nextTurn();

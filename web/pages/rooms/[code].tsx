@@ -112,7 +112,7 @@ const Room = () => {
                         Object.values(game.counteractions.steal).map(
                           (action) => (
                             <Button
-                              key={`${action.type}-${action.with}`}
+                              key={`${action.type}-${action.blockedWith}`}
                               className="mt-4 mr-4"
                               onClick={action}
                               disabled={action.isDisabled}

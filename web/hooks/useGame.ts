@@ -14,10 +14,11 @@ import {
   isPlayerCanBlockMessage,
   isNewTurnMessage,
   ConfirmActionMessage,
+  PlayerCanBlockMessage,
+  WithContext,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
-import { type } from "os";
 
 const WS_URL = `ws://localhost:8080`;
 
@@ -45,7 +46,8 @@ export type BlockActionMeta = {
   type: "Steal";
   label: string;
   target: PlayerData;
-  with: "captain" | "ambassador";
+  player: PlayerData;
+  blockedWith: "captain" | "ambassador";
   isBluff: boolean;
   isDisabled: boolean;
 };
@@ -205,7 +207,8 @@ export const useGame = (): Game => {
       type,
       label,
       target,
-      with: cardType,
+      player,
+      blockedWith,
       isBluff,
       isDisabled,
     }: BlockActionMeta): BlockAction =>
@@ -217,11 +220,12 @@ export const useGame = (): Game => {
               action: {
                 type,
                 target,
-                with: cardType,
+                player,
+                blockedWith,
               },
             },
           }),
-        { type, label, target, with: cardType, isBluff, isDisabled }
+        { type, label, target, player, blockedWith, isBluff, isDisabled }
       ),
     [send]
   );
@@ -231,16 +235,20 @@ export const useGame = (): Game => {
       captain: createBlockAction({
         type: "Steal",
         label: "Block with Captain",
-        with: "captain",
         target: context?.you as PlayerData,
+        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
+          ?.action?.player,
+        blockedWith: "captain",
         isBluff: !hand?.find((card) => card.type === "captain"),
         isDisabled: yourStatus !== "counteract",
       }),
       ambassador: createBlockAction({
         type: "Steal",
         label: "Block with Ambassador",
-        with: "ambassador",
         target: context?.you as PlayerData,
+        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
+          ?.action?.player,
+        blockedWith: "ambassador",
         isBluff: !hand?.find((card) => card.type === "ambassador"),
         isDisabled: yourStatus !== "counteract",
       }),
@@ -257,6 +265,7 @@ export const useGame = (): Game => {
           action: {
             type: lastMessage.payload.action.type as any,
             target: lastMessage.payload.action.target,
+            player: lastMessage.payload.action.player,
           },
         },
       });

@@ -8,7 +8,8 @@ export interface BaseBlockAction extends MessageData {
     action: {
       type: BlockActionMessage["payload"]["action"]["type"];
       target: PlayerData;
-      with: Omit<CardType, "assassin">;
+      player: PlayerData;
+      blockedWith: BlockActionMessage["payload"]["action"]["blockedWith"];
     };
   };
 }
@@ -22,7 +23,8 @@ export const isBlockActionMessage = (
       action: {
         type: "string",
         target: player,
-        with: "string",
+        player,
+        blockedWith: "string",
       },
     },
   });
@@ -32,7 +34,8 @@ export interface BlockStealAction extends BaseBlockAction {
     action: {
       type: "Steal";
       target: PlayerData;
-      with: "captain" | "ambassador";
+      player: PlayerData;
+      blockedWith: "captain" | "ambassador";
     };
   };
 }
@@ -46,7 +49,8 @@ export const isBlockStealAction = (
       action: {
         type: "Steal",
         target: player,
-        with: "string",
+        player,
+        blockedWith: "string",
       },
     },
   });

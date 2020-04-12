@@ -32,6 +32,7 @@ export interface ConfirmStealAction extends BaseConfirmAction {
     action: {
       type: "Steal";
       target: PlayerData;
+      player: PlayerData;
     };
   };
 }
@@ -45,6 +46,7 @@ export const isConfirmStealAction = (
       action: {
         type: "Steal",
         target: player,
+        player,
       },
     },
   });
@@ -54,6 +56,7 @@ export interface ConfirmAssassinateAction extends BaseConfirmAction {
     action: {
       type: "Assassinate";
       target: PlayerData;
+      player: PlayerData;
     };
   };
 }
@@ -67,6 +70,7 @@ export const isConfirmAssassinateAction = (
       action: {
         type: "Assassinate",
         target: player,
+        player,
       },
     },
   });
