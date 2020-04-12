@@ -13,10 +13,10 @@ import {
   PlayerData,
   isPlayerCanBlockMessage,
   isNewTurnMessage,
-  ConfirmActionMessage,
   PlayerCanBlockMessage,
   WithContext,
   BlockActionMessage,
+  isAnyoneCanBlockMessage,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
@@ -100,14 +100,26 @@ export const useGame = (): Game => {
   const youCanStart = isCreator && hasEnoughPlayers;
 
   const determinePlayerStatus = (): PlayerStatus => {
-    if (context?.status === "waitingForPlayers" && youCanStart)
+    if (!lastMessage || !context) return "idle";
+
+    if (context.status === "waitingForPlayers" && youCanStart) {
       return "canStartGame";
-    if (lastMessage && isNewTurnMessage(lastMessage) && isYourTurn)
+    }
+
+    if (isNewTurnMessage(lastMessage) && isYourTurn) {
       return "takeTurn";
+    }
+
     if (
-      lastMessage &&
+      isAnyoneCanBlockMessage(lastMessage) &&
+      lastMessage.payload.action.player.id !== context.you.id
+    ) {
+      return "counteract";
+    }
+
+    if (
       isPlayerCanBlockMessage(lastMessage) &&
-      lastMessage.payload.action.target.id === context?.you.id
+      lastMessage.payload.action.target.id === context.you.id
     ) {
       return "counteract";
     }
@@ -232,6 +244,18 @@ export const useGame = (): Game => {
   );
 
   const counteractions: BlockActions = {
+    foreignAid: {
+      duke: createBlockAction({
+        type: "ForeignAid",
+        label: "Block with Duke",
+        target: context?.you as PlayerData,
+        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
+          ?.action?.player,
+        blockedWith: "duke",
+        isBluff: !hand?.find((card) => card.type === "duke"),
+        isDisabled: yourStatus !== "counteract",
+      }),
+    },
     steal: {
       captain: createBlockAction({
         type: "Steal",
@@ -254,11 +278,36 @@ export const useGame = (): Game => {
         isDisabled: yourStatus !== "counteract",
       }),
     },
+    assassinate: {
+      contessa: createBlockAction({
+        type: "Assassinate",
+        label: "Block with Contessa",
+        target: context?.you as PlayerData,
+        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
+          ?.action?.player,
+        blockedWith: "contessa",
+        isBluff: !hand?.find((card) => card.type === "contessa"),
+        isDisabled: yourStatus !== "counteract",
+      }),
+    },
   };
 
   let allow = undefined;
 
-  if (!!lastMessage && isPlayerCanBlockMessage(lastMessage)) {
+  if (lastMessage && isAnyoneCanBlockMessage(lastMessage)) {
+    allow = () =>
+      send({
+        type: "ConfirmAction",
+        payload: {
+          action: {
+            type: lastMessage.payload.action.type,
+            player: lastMessage.payload.action.player,
+          },
+        },
+      });
+  }
+
+  if (lastMessage && isPlayerCanBlockMessage(lastMessage)) {
     allow = () =>
       send({
         type: "ConfirmAction",

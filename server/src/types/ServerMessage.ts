@@ -5,15 +5,10 @@ import {
   PlayerData,
   CardData,
   player,
-  BlockActionMessage,
-} from "../";
-import {
-  PlayerActionMessage,
-  IncomePlayerAction,
   ForeignAidPlayerAction,
   StealPlayerAction,
   AssassinatePlayerAction,
-} from "./PlayerAction";
+} from "../";
 
 export interface ServerMessageData extends MessageData {}
 
@@ -31,6 +26,7 @@ export type ServerMessageWithoutContext =
   | GameStartedMessage
   | NewTurnMessage
   | NewHandMessage
+  | AnyoneCanBlockMessage
   | PlayerCanBlockMessage;
 
 export interface UnauthorisedActionMessage extends ServerMessageData {
@@ -147,7 +143,8 @@ export const isNewHandMessage = (
 export interface AnyoneCanBlockMessage extends ServerMessageData {
   type: "AnyoneCanBlock";
   payload: {
-    action: ForeignAidPlayerAction["payload"]["action"] & {
+    action: {
+      type: ForeignAidPlayerAction["payload"]["action"]["type"];
       player: PlayerData;
     };
   };
@@ -161,7 +158,6 @@ export const isAnyoneCanBlockMessage = (
     payload: {
       action: {
         type: "string",
-        target: player,
         player,
       },
     },
@@ -172,11 +168,10 @@ export interface PlayerCanBlockMessage extends ServerMessageData {
   payload: {
     action: {
       type: (
-        | ForeignAidPlayerAction
         | StealPlayerAction
         | AssassinatePlayerAction
       )["payload"]["action"]["type"];
-      target?: (
+      target: (
         | StealPlayerAction
         | AssassinatePlayerAction
       )["payload"]["action"]["target"];

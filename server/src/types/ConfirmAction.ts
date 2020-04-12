@@ -1,6 +1,7 @@
 import { MessageData, PlayerData, validate, player, CardType } from "../";
 
 export type ConfirmActionMessage =
+  | ConfirmForeignAidAction
   | ConfirmStealAction
   | ConfirmAssassinateAction;
 
@@ -9,7 +10,8 @@ export interface BaseConfirmAction extends MessageData {
   payload: {
     action: {
       type: string;
-      target: PlayerData;
+      target?: PlayerData;
+      player: PlayerData;
     };
   };
 }
@@ -22,7 +24,29 @@ export const isConfirmActionMessage = (
     payload: {
       action: {
         type: "string",
-        target: player,
+        player,
+      },
+    },
+  });
+
+export interface ConfirmForeignAidAction extends BaseConfirmAction {
+  payload: {
+    action: {
+      type: "ForeignAid";
+      player: PlayerData;
+    };
+  };
+}
+
+export const isConfirmForeignAidAction = (
+  message: MessageData
+): message is ConfirmForeignAidAction =>
+  validate(message, {
+    type: "ConfirmAction",
+    payload: {
+      action: {
+        type: "ForeignAid",
+        player,
       },
     },
   });

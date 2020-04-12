@@ -21,13 +21,10 @@ import {
   BlockActionMessage,
   ConfirmActionMessage,
   isConfirmStealAction,
-} from "./";
-import {
   isAssassinatePlayerAction,
-  ForeignAidPlayerAction,
-  StealPlayerAction,
-  AssassinatePlayerAction,
-} from "./types";
+  AnyoneCanBlockMessage,
+  isConfirmForeignAidAction,
+} from "./";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -243,32 +240,37 @@ export class Room {
       });
     }
 
-    const anyoneCanBlock = isForeignAidPlayerAction(message);
+    if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
 
-    const playerCanBlock =
-      isStealPlayerAction(message) || isAssassinatePlayerAction(message);
-
-    if (playerCanBlock) {
-      const blockableMessage = message as
-        | StealPlayerAction
-        | AssassinatePlayerAction;
-
-      const broadcast: PlayerCanBlockMessage = {
-        type: "PlayerCanBlock",
+    if (isForeignAidPlayerAction(message)) {
+      const messageToBroadcast: AnyoneCanBlockMessage = {
+        type: "AnyoneCanBlock",
         payload: {
           action: {
-            type: blockableMessage.payload.action.type,
-            target: blockableMessage.payload.action.target,
+            type: message.payload.action.type,
             player: player.toJson(),
           },
         },
       };
 
-      return this.broadcast(broadcast);
+      return this.broadcast(messageToBroadcast);
     }
 
-    if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
-    if (isForeignAidPlayerAction(message)) player.updateCoinsBy(2);
+    if (isStealPlayerAction(message) || isAssassinatePlayerAction(message)) {
+      const messageToBroadcast: PlayerCanBlockMessage = {
+        type: "PlayerCanBlock",
+        payload: {
+          action: {
+            type: message.payload.action.type,
+            target: message.payload.action.target,
+            player: player.toJson(),
+          },
+        },
+      };
+
+      return this.broadcast(messageToBroadcast);
+    }
+
     if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
 
     this.nextTurn();
@@ -279,6 +281,10 @@ export class Room {
   };
 
   handleConfirmAction = (message: ConfirmActionMessage, player: Player) => {
+    if (isConfirmForeignAidAction(message)) {
+      this.findPlayer(message.payload.action.player)?.updateCoinsBy(2);
+    }
+
     if (isConfirmStealAction(message)) {
       this.findPlayer(message.payload.action.player)?.updateCoinsBy(2);
       this.findPlayer(message.payload.action.target)?.updateCoinsBy(-2);

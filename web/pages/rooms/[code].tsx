@@ -1,7 +1,11 @@
 import { useEffect } from "react";
 import Router from "next/router";
 
-import { StartGameMessage, isPlayerCanBlockMessage } from "server/src";
+import {
+  StartGameMessage,
+  isPlayerCanBlockMessage,
+  isAnyoneCanBlockMessage,
+} from "server/src";
 
 import { Players, PlayerHand, Button } from "../../components";
 import {
@@ -21,11 +25,6 @@ const Room = () => {
   }, []);
 
   const game = useGame();
-
-  require("react").useEffect(
-    () => console.log("game.yourStatus:", game.yourStatus),
-    [game.yourStatus]
-  );
 
   if (!game.isConnected) {
     return <div>No connection.</div>;
@@ -101,15 +100,44 @@ const Room = () => {
               )}
               {game.yourStatus === "counteract" &&
                 !!game.lastMessage &&
-                isPlayerCanBlockMessage(game.lastMessage) && (
+                (isPlayerCanBlockMessage(game.lastMessage) ||
+                  isAnyoneCanBlockMessage(game.lastMessage)) && (
                   <>
                     <p>
                       Want to block {game.activePlayer?.name}'s{" "}
                       {game.lastMessage.payload.action.type.toLowerCase()}?
                     </p>
                     <div className="flex">
+                      {game.lastMessage.payload.action.type === "ForeignAid" &&
+                        Object.values(game.counteractions.foreignAid).map(
+                          (action) => (
+                            <Button
+                              key={`${action.type}-${action.blockedWith}`}
+                              className="mt-4 mr-4"
+                              onClick={action}
+                              disabled={action.isDisabled}
+                              destructive={action.isBluff}
+                            >
+                              {action.label}
+                            </Button>
+                          )
+                        )}
                       {game.lastMessage.payload.action.type === "Steal" &&
                         Object.values(game.counteractions.steal).map(
+                          (action) => (
+                            <Button
+                              key={`${action.type}-${action.blockedWith}`}
+                              className="mt-4 mr-4"
+                              onClick={action}
+                              disabled={action.isDisabled}
+                              destructive={action.isBluff}
+                            >
+                              {action.label}
+                            </Button>
+                          )
+                        )}
+                      {game.lastMessage.payload.action.type === "Assassinate" &&
+                        Object.values(game.counteractions.assassinate).map(
                           (action) => (
                             <Button
                               key={`${action.type}-${action.blockedWith}`}
