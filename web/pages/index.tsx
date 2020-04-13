@@ -52,7 +52,9 @@ const Homepage = () => {
                   pattern="[a-zA-Z]{4}"
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 uppercase focus:outline-none focus:shadow-outline-blue focus:border-blue-300 transition duration-150 ease-in-out sm:text-sm sm:leading-5"
                   value={roomCode}
-                  onChange={(event) => setRoomCode(event.target.value)}
+                  onChange={(event) =>
+                    setRoomCode(event.target.value.toUpperCase())
+                  }
                 />
               </div>
             </div>

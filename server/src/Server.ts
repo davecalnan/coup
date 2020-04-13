@@ -21,13 +21,13 @@ wss.on("connection", (ws) => {
 
       if (isJoinGameMessage(message)) {
         const existingRoom = rooms.find(
-          (room) => room.code === message.payload.room
+          (room) => room.code === message.payload.room.toUpperCase()
         );
 
         if (existingRoom) {
           room = existingRoom;
         } else {
-          room = new Room({ code: message.payload.room });
+          room = new Room({ code: message.payload.room.toUpperCase() });
           rooms.push(room);
 
           const roomIndex = rooms.indexOf(room);
