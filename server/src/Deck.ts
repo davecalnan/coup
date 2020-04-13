@@ -1,15 +1,23 @@
-import { Card } from "./";
+import { Card, toJson } from "./";
 
 export class Deck {
-  public cards: Card[];
+  private _cards: Card[];
+
+  get cards() {
+    return this._cards.filter((card) => !card.player);
+  }
+
+  get allCards() {
+    return this._cards;
+  }
 
   constructor() {
-    this.cards = this.shuffle([
-      ...Card.make({ type: "duke" }, 3),
-      ...Card.make({ type: "captain" }, 3),
-      ...Card.make({ type: "assassin" }, 3),
-      ...Card.make({ type: "ambassador" }, 3),
-      ...Card.make({ type: "contessa" }, 3),
+    this._cards = this.shuffle([
+      ...Card.make({ deck: this, type: "duke" }, 3),
+      ...Card.make({ deck: this, type: "captain" }, 3),
+      ...Card.make({ deck: this, type: "assassin" }, 3),
+      ...Card.make({ deck: this, type: "ambassador" }, 3),
+      ...Card.make({ deck: this, type: "contessa" }, 3),
     ]);
   }
 
@@ -22,4 +30,13 @@ export class Deck {
 
     return cards;
   };
+
+  returnCards = (cards: Card[]) => {
+    cards.forEach((card) => card.returnToDeck());
+  };
+
+  toJson = () => ({
+    cards: this.cards.map(toJson),
+    allCards: this.cards.map(toJson),
+  });
 }

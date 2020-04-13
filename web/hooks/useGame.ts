@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/router";
 
 import {
@@ -17,13 +17,23 @@ import {
   WithContext,
   BlockActionMessage,
   isAnyoneCanBlockMessage,
+  isPlayerMustChooseCardToLoseMessage,
+  CardType,
+  isPlayerMustChooseCardsMessage,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
 
 const WS_URL = `ws://localhost:8080`;
 
-export type PlayerStatus = "idle" | "canStartGame" | "takeTurn" | "counteract";
+export type PlayerStatus =
+  | "idle"
+  | "canStartGame"
+  | "takeTurn"
+  | "counteract"
+  | "chooseCardToLose"
+  | "chooseCards"
+  | "eliminated";
 
 export type SendMessageFn = (message: ClientMessage) => void;
 
@@ -69,6 +79,9 @@ export type Game = {
   isConnected: boolean;
   hand: CardData[] | undefined;
   yourStatus: PlayerStatus;
+  numberOfCardsToChoose: number | undefined;
+  chosenCards: CardData[] | undefined;
+  toggleCardChosen: ((card: CardData) => void) | undefined;
   isCreator: boolean;
   hasEnoughPlayers: boolean;
   send: SendMessageFn;
@@ -106,6 +119,10 @@ export const useGame = (): Game => {
       return "canStartGame";
     }
 
+    if (context.you.isEliminated) {
+      return "eliminated";
+    }
+
     if (isNewTurnMessage(lastMessage) && isYourTurn) {
       return "takeTurn";
     }
@@ -124,10 +141,61 @@ export const useGame = (): Game => {
       return "counteract";
     }
 
+    if (
+      isPlayerMustChooseCardToLoseMessage(lastMessage) &&
+      lastMessage.payload.action.target.id === context.you.id
+    ) {
+      return "chooseCardToLose";
+    }
+
+    if (
+      isPlayerMustChooseCardsMessage(lastMessage) &&
+      lastMessage.payload.action.player.id === context.you.id
+    ) {
+      return "chooseCards";
+    }
+
     return "idle";
   };
 
   const yourStatus = determinePlayerStatus();
+
+  let numberOfCardsToChoose = useMemo(() => {
+    if (yourStatus === "chooseCards") {
+      return hand?.filter((card) => !card.isDead).length;
+    }
+
+    return undefined;
+  }, [yourStatus]);
+
+  const [chosenCards, setChosenCards] = useState<CardData[]>();
+
+  useEffect(() => {
+    if (yourStatus !== "chooseCards" && !!chosenCards) {
+      setChosenCards(undefined);
+    }
+  }, [yourStatus]);
+
+  const toggleCardChosen = useMemo(() => {
+    if (yourStatus === "chooseCards") {
+      return (card: CardData) =>
+        setChosenCards((cards) => {
+          if (cards === undefined) return [card];
+
+          if (cards.find(({ id }) => card.id === id)) {
+            return cards.filter(({ id }) => card.id !== id);
+          }
+
+          if (cards.length === numberOfCardsToChoose) {
+            return [...cards.slice(1), card];
+          }
+
+          return [...cards, card];
+        });
+    }
+
+    return undefined;
+  }, [yourStatus]);
 
   const send: SendMessageFn = useCallback(
     (message) => {
@@ -170,6 +238,14 @@ export const useGame = (): Game => {
 
   const mustCoup = (context?.you.coins ?? 0) >= 10;
 
+  const hasCard = (type: CardType) => {
+    if (!hand) return false;
+
+    return !hand
+      .filter((card) => !card.isDead)
+      .find((card) => card.type === type);
+  };
+
   const actions: PlayerActions = {
     income: createPlayerAction({
       type: "Income",
@@ -185,27 +261,27 @@ export const useGame = (): Game => {
       type: "Tax",
       label: "Take Tax",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: !hand?.find((card) => card.type === "duke"),
+      isBluff: hasCard("duke"),
     }),
     steal: createPlayerAction({
       type: "Steal",
       label: "Steal from a player",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: !hand?.find((card) => card.type === "captain"),
+      isBluff: hasCard("captain"),
       needsTarget: true,
     }),
     assassinate: createPlayerAction({
       type: "Assassinate",
       label: "Assassinate a player",
       isDisabled: !isYourTurn || mustCoup || (context?.you.coins ?? 0) < 3,
-      isBluff: !hand?.find((card) => card.type === "assassin"),
+      isBluff: hasCard("assassin"),
       needsTarget: true,
     }),
     exchange: createPlayerAction({
       type: "Exchange",
       label: "Exchange your cards",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: !hand?.find((card) => card.type === "ambassador"),
+      isBluff: hasCard("ambassador"),
     }),
     coup: createPlayerAction({
       type: "Coup",
@@ -252,7 +328,7 @@ export const useGame = (): Game => {
         player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
           ?.action?.player,
         blockedWith: "duke",
-        isBluff: !hand?.find((card) => card.type === "duke"),
+        isBluff: hasCard("duke"),
         isDisabled: yourStatus !== "counteract",
       }),
     },
@@ -264,7 +340,7 @@ export const useGame = (): Game => {
         player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
           ?.action?.player,
         blockedWith: "captain",
-        isBluff: !hand?.find((card) => card.type === "captain"),
+        isBluff: hasCard("captain"),
         isDisabled: yourStatus !== "counteract",
       }),
       ambassador: createBlockAction({
@@ -274,7 +350,7 @@ export const useGame = (): Game => {
         player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
           ?.action?.player,
         blockedWith: "ambassador",
-        isBluff: !hand?.find((card) => card.type === "ambassador"),
+        isBluff: hasCard("ambassador"),
         isDisabled: yourStatus !== "counteract",
       }),
     },
@@ -286,7 +362,7 @@ export const useGame = (): Game => {
         player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
           ?.action?.player,
         blockedWith: "contessa",
-        isBluff: !hand?.find((card) => card.type === "contessa"),
+        isBluff: hasCard("contessa"),
         isDisabled: yourStatus !== "counteract",
       }),
     },
@@ -364,6 +440,9 @@ export const useGame = (): Game => {
     isCreator,
     hasEnoughPlayers,
     yourStatus,
+    numberOfCardsToChoose,
+    chosenCards,
+    toggleCardChosen,
     actions,
     counteractions,
     allow,

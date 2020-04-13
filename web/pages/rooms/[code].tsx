@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import Router from "next/router";
+import classNames from "classnames";
 
 import {
-  StartGameMessage,
   isPlayerCanBlockMessage,
   isAnyoneCanBlockMessage,
+  isPlayerMustChooseCardsMessage,
+  CardData,
 } from "server/src";
 
-import { Players, PlayerHand, Button } from "../../components";
+import { Players, PlayerHand, Button, PlayingCard } from "../../components";
 import {
   useGame,
   GameProvider,
@@ -34,14 +36,11 @@ const Room = () => {
     return <div>Setting up the room...</div>;
   }
 
-  const startGame = () => {
-    const message: StartGameMessage = {
+  const startGame = () =>
+    game.send({
       type: "StartGame",
       payload: {},
-    };
-
-    game.send(message);
-  };
+    });
 
   const handleAction = (action: PlayerAction) => {
     let target = undefined;
@@ -51,6 +50,41 @@ const Room = () => {
     }
 
     action(target);
+  };
+
+  const hasChosenEnoughCards =
+    !!game.chosenCards &&
+    !!game.numberOfCardsToChoose &&
+    game.chosenCards.length === game.numberOfCardsToChoose;
+
+  const chooseCards = () => {
+    if (
+      !(
+        hasChosenEnoughCards &&
+        game.chosenCards &&
+        game.hand &&
+        game.lastMessage &&
+        isPlayerMustChooseCardsMessage(game.lastMessage)
+      )
+    ) {
+      return;
+    }
+
+    const returnedCards = [
+      ...game.hand,
+      ...game.lastMessage.payload.cards,
+    ].filter(
+      (card) =>
+        !(game.chosenCards as CardData[]).find(({ id }) => card.id === id)
+    );
+
+    game.send({
+      type: "ChooseCards",
+      payload: {
+        chosenCards: game.chosenCards,
+        returnedCards,
+      },
+    });
   };
 
   return (
@@ -76,9 +110,12 @@ const Room = () => {
               )}
             </div>
           )}
-          {game.status === "playingGame" && (
+          {game.status === "inProgress" && (
             <div>
-              <p>{game.yourStatus === "idle" && `Waiting for your turn.`}</p>
+              {game.yourStatus === "eliminated" && (
+                <p>You have been eliminated.</p>
+              )}
+              {game.yourStatus === "idle" && <p>Waiting for your turn.</p>}
               {game.yourStatus === "takeTurn" && (
                 <>
                   <p>It's your turn!</p>
@@ -156,6 +193,33 @@ const Room = () => {
                     </div>
                   </>
                 )}
+              {game.yourStatus === "chooseCardToLose" && (
+                <p>You must choose a card to lose.</p>
+              )}
+              {game.yourStatus === "chooseCards" && (
+                <>
+                  <p>
+                    Choose {game.hand?.length === 1 && "one card"}
+                    {game.hand?.length === 2 && "two cards"} to keep.
+                  </p>
+                  {game.yourStatus === "chooseCards" && (
+                    <Button
+                      onClick={chooseCards}
+                      disabled={!hasChosenEnoughCards}
+                      className="mt-4"
+                      primary
+                    >
+                      Choose cards
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {game.status === "over" && (
+            <div>
+              <p>Game Over</p>
+              <p>{game.winner?.name} is the winner.</p>
             </div>
           )}
         </div>
@@ -167,6 +231,21 @@ const Room = () => {
             </Button>
           </div>
         </div>
+      </div>
+      <div className="mt-6">
+        {game.yourStatus === "chooseCards" &&
+          !!game.lastMessage &&
+          isPlayerMustChooseCardsMessage(game.lastMessage) && (
+            <div className="flex justify-center">
+              {game.lastMessage.payload.cards.map((card, index) => (
+                <PlayingCard
+                  key={card.id}
+                  card={card}
+                  className={classNames(index === 1 && "ml-4")}
+                />
+              ))}
+            </div>
+          )}
       </div>
       <PlayerHand />
     </GameProvider>

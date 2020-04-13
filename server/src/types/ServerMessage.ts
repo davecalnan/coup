@@ -24,10 +24,13 @@ export type ServerMessageWithoutContext =
   | NameAlreadyTakenMessage
   | PlayerLeftMessage
   | GameStartedMessage
+  | GameOverMessage
   | NewTurnMessage
   | NewHandMessage
   | AnyoneCanBlockMessage
-  | PlayerCanBlockMessage;
+  | PlayerCanBlockMessage
+  | PlayerMustChooseCardToLoseMessage
+  | PlayerMustChooseCardsMessage;
 
 export interface UnauthorisedActionMessage extends ServerMessageData {
   type: "UnauthorisedAction";
@@ -106,6 +109,23 @@ export const isGameStartedMessage = (
     payload: {},
   });
 
+export interface GameOverMessage extends ServerMessageData {
+  type: "GameOver";
+  payload: {
+    winner: PlayerData;
+  };
+}
+
+export const isGameOverMessage = (
+  message: MessageData
+): message is GameOverMessage =>
+  validate(message, {
+    type: "GameOver",
+    payload: {
+      winner: player,
+    },
+  });
+
 export interface NewTurnMessage extends ServerMessageData {
   type: "NewTurn";
   payload: {
@@ -171,10 +191,7 @@ export interface PlayerCanBlockMessage extends ServerMessageData {
         | StealPlayerAction
         | AssassinatePlayerAction
       )["payload"]["action"]["type"];
-      target: (
-        | StealPlayerAction
-        | AssassinatePlayerAction
-      )["payload"]["action"]["target"];
+      target: PlayerData;
       player: PlayerData;
     };
   };
@@ -189,6 +206,56 @@ export const isPlayerCanBlockMessage = (
       action: {
         type: "string",
         target: player,
+        player,
+      },
+    },
+  });
+
+export interface PlayerMustChooseCardToLoseMessage extends ServerMessageData {
+  type: "PlayerMustChooseCardToLose";
+  payload: {
+    action: {
+      type: "Assassinate" | "Coup";
+      target: PlayerData;
+      player: PlayerData;
+    };
+  };
+}
+
+export const isPlayerMustChooseCardToLoseMessage = (
+  message: MessageData
+): message is PlayerMustChooseCardToLoseMessage =>
+  validate(message, {
+    type: "PlayerMustChooseCardToLose",
+    payload: {
+      action: {
+        type: "string",
+        target: player,
+        player,
+      },
+    },
+  });
+
+export interface PlayerMustChooseCardsMessage extends ServerMessageData {
+  type: "PlayerMustChooseCards";
+  payload: {
+    cards: CardData[];
+    action: {
+      type: "Exchange";
+      player: PlayerData;
+    };
+  };
+}
+
+export const isPlayerMustChooseCardsMessage = (
+  message: MessageData
+): message is PlayerMustChooseCardsMessage =>
+  validate(message, {
+    type: "PlayerMustChooseCards",
+    payload: {
+      cards: "array",
+      action: {
+        type: "string",
         player,
       },
     },

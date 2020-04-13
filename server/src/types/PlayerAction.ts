@@ -158,6 +158,7 @@ export interface CoupPlayerAction extends BasePlayerAction {
   payload: {
     action: {
       type: "Coup";
+      target: PlayerData;
     };
   };
 }
@@ -170,6 +171,7 @@ export const isCoupPlayerAction = (
     payload: {
       action: {
         type: "Coup",
+        target: player,
       },
     },
   });

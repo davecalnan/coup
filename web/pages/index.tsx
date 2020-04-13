@@ -2,10 +2,12 @@ import { useState, FormEvent } from "react";
 import Router from "next/router";
 
 import { Layout, Card } from "../components";
+import { useLocalStorage } from "../hooks";
 
 const Homepage = () => {
+  const nameFromLocalStorage = useLocalStorage("name");
   const [roomCode, setRoomCode] = useState<string>("");
-  const [name, setName] = useState<string>("");
+  const [name, setName] = useState<string>(nameFromLocalStorage ?? "");
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();

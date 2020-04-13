@@ -12,6 +12,9 @@ export const decode = (message: WebSocket.Data): ClientMessage => {
   throw new TypeError(`Invalid message type.`);
 };
 
+export const toJson = <T extends { toJson: () => object }>(object: T) =>
+  object.toJson();
+
 export const encode = (message: any) => JSON.stringify(message, null, 2);
 
 export const not = (needle: any) => (straw: any) => straw !== needle;
@@ -25,6 +28,7 @@ export type ShapeObjectValue =
   | "number"
   | "boolean"
   | "array"
+  | "cardType"
   | ShapeObject;
 
 export type ShapeObject = {
@@ -43,6 +47,12 @@ export const validateObjectShape = (
   Object.entries(shape).every(([key, type]) => {
     if (type === "string" || type === "number" || type === "boolean") {
       return typeof object[key] === type;
+    }
+
+    if (type === "cardType") {
+      return ["duke", "captain", "assassin", "ambassador", "contessa"].includes(
+        object[key]
+      );
     }
 
     if (type === "array") {
@@ -66,6 +76,16 @@ export type PlayerShape = {
 export const player: PlayerShape = {
   name: "string",
   isActive: "boolean",
+};
+
+export type CardShape = {
+  id: "string";
+  type: "cardType";
+};
+
+export const card: CardShape = {
+  id: "string",
+  type: "cardType",
 };
 
 export const validate = (

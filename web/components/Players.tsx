@@ -20,7 +20,8 @@ export const Players = () => {
               key={index}
               className={classNames(
                 "flex justify-between",
-                player.isActive && "text-green-500"
+                player.isActive && "text-green-500",
+                player.isEliminated && "line-through"
               )}
             >
               <span>
@@ -28,7 +29,7 @@ export const Players = () => {
                 {isCurrentPlayer && " (you)"}
               </span>
               <span>
-                {game.status === "playingGame" &&
+                {game.status === "inProgress" &&
                   `${player.coins} ${player.coins === 1 ? "coin" : "coins"}`}
               </span>
             </li>
