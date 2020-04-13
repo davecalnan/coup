@@ -219,7 +219,10 @@ const Room = () => {
           {game.status === "over" && (
             <div>
               <p>Game Over</p>
-              <p>{game.winner?.name} is the winner.</p>
+              {game.winner?.id === game.you?.id && <p>You won!</p>}
+              {game.winner?.id !== game.you?.id && (
+                <p>{game.winner?.name} is the winner.</p>
+              )}
             </div>
           )}
         </div>
