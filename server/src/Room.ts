@@ -38,6 +38,8 @@ import {
   isExchangePlayerAction,
   isChooseCardsMessage,
   ChooseCardsMessage,
+  AssassinatePlayerAction,
+  CoupPlayerAction,
 } from "./types";
 
 export type UniqueBroadcastFunction = (
@@ -294,6 +296,24 @@ export class Room {
       });
     }
 
+    if (isAssassinatePlayerAction(message) || isCoupPlayerAction(message)) {
+      const requiredCoins = {
+        Assassinate: 3,
+        Coup: 7,
+      }[message.payload.action.type];
+
+      if (player.coins < requiredCoins) {
+        const action = message.payload.action.type.toLowerCase();
+
+        return player.send({
+          type: "UnauthorisedAction",
+          payload: {
+            message: `You do not have enough coins to ${action}. You need ${requiredCoins} but only have ${player.coins}.`,
+          },
+        });
+      }
+    }
+
     if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
 
     if (isForeignAidPlayerAction(message)) {
@@ -337,6 +357,8 @@ export class Room {
     }
 
     if (isCoupPlayerAction(message)) {
+      player.updateCoinsBy(-7);
+
       return this.broadcast({
         type: "PlayerMustChooseCardToLose",
         payload: {
@@ -370,8 +392,15 @@ export class Room {
     }
 
     if (isConfirmStealAction(message)) {
-      this.findPlayer(message.payload.action.player)?.updateCoinsBy(2);
-      this.findPlayer(message.payload.action.target)?.updateCoinsBy(-2);
+      const player = this.findPlayer(message.payload.action.player);
+      const target = this.findPlayer(message.payload.action.target);
+
+      if (player && target) {
+        const stolenCoins = target.coins >= 2 ? 2 : target.coins;
+
+        player.updateCoinsBy(stolenCoins);
+        target.updateCoinsBy(-stolenCoins);
+      }
     }
 
     if (isConfirmAssassinateAction(message)) {
@@ -422,10 +451,8 @@ export class Room {
       });
     }
 
-    console.log("[WSS] Deck before exchange:", this.deck.allCards.map(toJson));
     player.setHand(chosenCards as Card[]);
     this.deck.returnCards(returnedCards as Card[]);
-    console.log("[WSS] Deck after exchange:", this.deck.allCards.map(toJson));
 
     player.send({
       type: "NewHand",
