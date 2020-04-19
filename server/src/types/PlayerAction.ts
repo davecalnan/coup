@@ -1,4 +1,4 @@
-import { MessageData, PlayerData, validate, player } from "../";
+import { MessageData, PlayerData, validate, player, ActionData } from "../";
 
 export type PlayerActionMessage =
   | IncomePlayerAction

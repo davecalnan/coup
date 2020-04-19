@@ -1,4 +1,4 @@
-import { Card, toJson } from "./";
+import { Card } from "./";
 
 export class Deck {
   private _cards: Card[];
@@ -36,7 +36,7 @@ export class Deck {
   };
 
   toJson = () => ({
-    cards: this.cards.map(toJson),
-    allCards: this.cards.map(toJson),
+    cards: this.cards.map((card) => card.toJson()),
+    allCards: this.cards.map((card) => card.toJson()),
   });
 }

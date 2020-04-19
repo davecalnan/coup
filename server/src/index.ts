@@ -1,5 +1,6 @@
 export * from "./types";
 
+export * from "./Action";
 export * from "./Card";
 export * from "./Deck";
 export * from "./Message";

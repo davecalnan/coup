@@ -20,16 +20,19 @@ import {
   isPlayerMustChooseCardToLoseMessage,
   CardType,
   isPlayerMustChooseCardsMessage,
+  isActionPendingMessage,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
 
 const WS_URL = `ws://localhost:8080`;
+// const WS_URL = `wss://coup-wss.eu.ngrok.io`;
 
 export type PlayerStatus =
   | "idle"
   | "canStartGame"
   | "takeTurn"
+  | "challenge"
   | "counteract"
   | "chooseCardToLose"
   | "chooseCards"
@@ -113,6 +116,7 @@ export const useGame = (): Game => {
   const youCanStart = isCreator && hasEnoughPlayers;
 
   const determinePlayerStatus = (): PlayerStatus => {
+    console.log("determinePlayerStatus:", { lastMessage, context });
     if (!lastMessage || !context) return "idle";
 
     if (context.status === "waitingForPlayers" && youCanStart) {
@@ -125,6 +129,10 @@ export const useGame = (): Game => {
 
     if (isNewTurnMessage(lastMessage) && isYourTurn) {
       return "takeTurn";
+    }
+
+    if (isActionPendingMessage(lastMessage)) {
+      return "challenge";
     }
 
     if (
@@ -143,7 +151,7 @@ export const useGame = (): Game => {
 
     if (
       isPlayerMustChooseCardToLoseMessage(lastMessage) &&
-      lastMessage.payload.action.target.id === context.you.id
+      lastMessage.payload.player.id === context.you.id
     ) {
       return "chooseCardToLose";
     }
@@ -159,6 +167,9 @@ export const useGame = (): Game => {
   };
 
   const yourStatus = determinePlayerStatus();
+  require("react").useEffect(() => console.log("yourStatus:", yourStatus), [
+    yourStatus,
+  ]);
 
   let numberOfCardsToChoose = useMemo(() => {
     if (yourStatus === "chooseCards") {

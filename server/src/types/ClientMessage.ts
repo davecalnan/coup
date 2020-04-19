@@ -13,6 +13,7 @@ export type ClientMessage =
   | LeaveGameMessage
   | StartGameMessage
   | PlayerActionMessage
+  | ChallengeActionMessage
   | BlockActionMessage
   | ConfirmActionMessage
   | LoseCardMessage
@@ -96,5 +97,26 @@ export const isChooseCardsMessage = (
     payload: {
       chosenCards: "array",
       returnedCards: "array",
+    },
+  });
+
+export interface ChallengeActionMessage extends MessageData {
+  type: "ChallengeAction";
+  payload: {
+    action: {
+      id: string;
+    };
+  };
+}
+
+export const isChallengeActionMessage = (
+  message: MessageData
+): message is ChallengeActionMessage =>
+  validate(message, {
+    type: "ChallengeAction",
+    payload: {
+      action: {
+        id: "string",
+      },
     },
   });

@@ -1,14 +1,7 @@
 import WebSocket from "ws";
 import { v4 as uuid } from "uuid";
 
-import {
-  Message,
-  Room,
-  ServerMessageWithoutContext,
-  Card,
-  CardData,
-  toJson,
-} from "./";
+import { Message, Room, ServerMessageWithoutContext, Card, CardData } from "./";
 
 export interface PlayerData {
   id: string;
@@ -107,7 +100,10 @@ export class Player {
   };
 
   setHand = (cards: Card[]) => {
-    console.log("[WSS] Setting hand to:", cards.map(toJson));
+    console.log(
+      "[WSS] Setting hand to:",
+      cards.map((card) => card.toJson())
+    );
 
     this.cards.forEach((card) => {
       if (!cards.includes(card)) {

@@ -8,6 +8,7 @@ import {
   ForeignAidPlayerAction,
   StealPlayerAction,
   AssassinatePlayerAction,
+  ActionData,
 } from "../";
 
 export interface ServerMessageData extends MessageData {}
@@ -30,7 +31,9 @@ export type ServerMessageWithoutContext =
   | AnyoneCanBlockMessage
   | PlayerCanBlockMessage
   | PlayerMustChooseCardToLoseMessage
-  | PlayerMustChooseCardsMessage;
+  | PlayerMustChooseCardsMessage
+  | ActionPendingMessage
+  | ActionCompletedMessage;
 
 export interface UnauthorisedActionMessage extends ServerMessageData {
   type: "UnauthorisedAction";
@@ -214,11 +217,8 @@ export const isPlayerCanBlockMessage = (
 export interface PlayerMustChooseCardToLoseMessage extends ServerMessageData {
   type: "PlayerMustChooseCardToLose";
   payload: {
-    action: {
-      type: "Assassinate" | "Coup";
-      target: PlayerData;
-      player: PlayerData;
-    };
+    action: ActionData;
+    player: PlayerData;
   };
 }
 
@@ -228,9 +228,9 @@ export const isPlayerMustChooseCardToLoseMessage = (
   validate(message, {
     type: "PlayerMustChooseCardToLose",
     payload: {
+      player,
       action: {
         type: "string",
-        target: player,
         player,
       },
     },
@@ -255,6 +255,51 @@ export const isPlayerMustChooseCardsMessage = (
     payload: {
       cards: "array",
       action: {
+        type: "string",
+        player,
+      },
+    },
+  });
+
+export interface ActionPendingMessage extends MessageData {
+  type: "ActionPending";
+  payload: {
+    action: ActionData;
+  };
+}
+
+export const isActionPendingMessage = (
+  message: MessageData
+): message is ActionPendingMessage =>
+  validate(message, {
+    type: "ActionPending",
+    payload: {
+      action: {
+        id: "string",
+        status: "string",
+        type: "string",
+        player,
+        challengeBefore: "string",
+      },
+    },
+  });
+
+export interface ActionCompletedMessage extends MessageData {
+  type: "ActionCompleted";
+  payload: {
+    action: ActionData;
+  };
+}
+
+export const isActionCompletedMessage = (
+  message: MessageData
+): message is ActionCompletedMessage =>
+  validate(message, {
+    type: "ActionCompleted",
+    payload: {
+      action: {
+        id: "string",
+        status: "string",
         type: "string",
         player,
       },

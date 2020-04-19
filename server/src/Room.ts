@@ -26,9 +26,7 @@ import {
   isConfirmForeignAidAction,
   CardData,
   Card,
-  toJson,
-} from "./";
-import {
+  Action,
   isConfirmAssassinateAction,
   PlayerMustChooseCardToLoseMessage,
   isLoseCardMessage,
@@ -40,7 +38,10 @@ import {
   ChooseCardsMessage,
   AssassinatePlayerAction,
   CoupPlayerAction,
-} from "./types";
+  TaxAction,
+} from "./";
+import { IncomeAction } from "./Action";
+import { isChallengeActionMessage } from "./types";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -73,6 +74,8 @@ export class Room {
   public players: Player[] = [];
   public creator: Player | undefined = undefined;
   public activePlayer: Player | undefined = undefined;
+
+  public currentAction: Action | undefined;
 
   public deck = new Deck();
 
@@ -277,6 +280,15 @@ export class Room {
   findCard = (target: CardData) =>
     this.deck.allCards.find((card) => card.id === target.id);
 
+  createAction = (type: Action["type"], player: Player) => {
+    if (type === "Income") {
+      return (this.currentAction = new IncomeAction({ room: this, player }));
+    }
+    if (type === "Tax") {
+      return (this.currentAction = new TaxAction({ room: this, player }));
+    }
+  };
+
   handlePlayerAction = (message: PlayerActionMessage, player: Player) => {
     if (player !== this.activePlayer) {
       return player.send({
@@ -314,7 +326,9 @@ export class Room {
       }
     }
 
-    if (isIncomePlayerAction(message)) player.updateCoinsBy(1);
+    if (isIncomePlayerAction(message) || isTaxPlayerAction(message)) {
+      this.createAction(message.payload.action.type, player);
+    }
 
     if (isForeignAidPlayerAction(message)) {
       return this.broadcast({
@@ -327,8 +341,6 @@ export class Room {
         },
       });
     }
-
-    if (isTaxPlayerAction(message)) player.updateCoinsBy(3);
 
     if (isStealPlayerAction(message) || isAssassinatePlayerAction(message)) {
       return this.broadcast({
@@ -359,19 +371,18 @@ export class Room {
     if (isCoupPlayerAction(message)) {
       player.updateCoinsBy(-7);
 
-      return this.broadcast({
-        type: "PlayerMustChooseCardToLose",
-        payload: {
-          action: {
-            type: "Coup",
-            target: message.payload.action.target,
-            player: player.toJson(),
-          },
-        },
-      });
+      // return this.broadcast({
+      //   type: "PlayerMustChooseCardToLose",
+      //   payload: {
+      //     player: message.payload.action.target,
+      //     action: {
+      //       type: "Coup",
+      //       target: message.payload.action.target,
+      //       player: player.toJson(),
+      //     },
+      //   },
+      // } as PlayerMustChooseCardToLoseMessage);
     }
-
-    this.nextTurn();
   };
 
   handleBlockAction = (message: BlockActionMessage, player: Player) => {
@@ -406,16 +417,13 @@ export class Room {
     if (isConfirmAssassinateAction(message)) {
       this.findPlayer(message.payload.action.player)?.updateCoinsBy(-3);
 
-      return this.broadcast({
-        type: "PlayerMustChooseCardToLose",
-        payload: {
-          action: {
-            type: message.payload.action.type,
-            target: message.payload.action.target,
-            player: player.toJson(),
-          },
-        },
-      });
+      // return this.broadcast({
+      //   type: "PlayerMustChooseCardToLose",
+      //   payload: {
+      //     player: message.payload.action.target,
+      //     action: this.currentAction?.toJson(),
+      //   },
+      // });
     }
 
     this.nextTurn();
@@ -471,6 +479,10 @@ export class Room {
 
     if (isPlayerActionMessage(message)) {
       this.handlePlayerAction(message, player);
+    }
+
+    if (isChallengeActionMessage(message)) {
+      this.currentAction?.challenge(player);
     }
 
     if (isBlockActionMessage(message)) {

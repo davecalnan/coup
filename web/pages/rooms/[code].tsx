@@ -7,6 +7,8 @@ import {
   isAnyoneCanBlockMessage,
   isPlayerMustChooseCardsMessage,
   CardData,
+  isActionPendingMessage,
+  ActionPendingMessage,
 } from "server/src";
 
 import { Players, PlayerHand, Button, PlayingCard } from "../../components";
@@ -135,6 +137,47 @@ const Room = () => {
                   </div>
                 </>
               )}
+              {game.yourStatus === "challenge" &&
+                !!game.lastMessage &&
+                isActionPendingMessage(game.lastMessage) && (
+                  <>
+                    {game.activePlayer?.id === game.you?.id && (
+                      <p>
+                        Waiting to see if someone will challenge your{" "}
+                        {game.lastMessage.payload.action.type.toLowerCase()}.
+                      </p>
+                    )}
+                    {game.activePlayer?.id !== game.you?.id && (
+                      <>
+                        <p>
+                          Want to challenge {game.activePlayer?.name}'s{" "}
+                          {game.lastMessage.payload.action.type.toLowerCase()}?
+                        </p>
+                        <div className="flex">
+                          <Button
+                            onClick={() =>
+                              game.send({
+                                type: "ChallengeAction",
+                                payload: {
+                                  action: {
+                                    id: (game.lastMessage as ActionPendingMessage)
+                                      .payload.action.id,
+                                  },
+                                },
+                              })
+                            }
+                            primary
+                          >
+                            Challenge
+                          </Button>
+                          <Button className="ml-4" primary>
+                            Challenge
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
               {game.yourStatus === "counteract" &&
                 !!game.lastMessage &&
                 (isPlayerCanBlockMessage(game.lastMessage) ||
