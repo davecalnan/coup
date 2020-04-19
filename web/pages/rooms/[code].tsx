@@ -170,72 +170,51 @@ const Room = () => {
                           >
                             Challenge
                           </Button>
-                          <Button className="ml-4" primary>
-                            Challenge
+                          <Button
+                            onClick={() =>
+                              game.send({
+                                type: "SkipChallengeAction",
+                                payload: {
+                                  action: {
+                                    id: (game.lastMessage as ActionPendingMessage)
+                                      .payload.action.id,
+                                  },
+                                },
+                              })
+                            }
+                            className="ml-4"
+                          >
+                            Skip
                           </Button>
                         </div>
                       </>
                     )}
                   </>
                 )}
-              {game.yourStatus === "counteract" &&
-                !!game.lastMessage &&
-                (isPlayerCanBlockMessage(game.lastMessage) ||
-                  isAnyoneCanBlockMessage(game.lastMessage)) && (
-                  <>
-                    <p>
-                      Want to block {game.activePlayer?.name}'s{" "}
-                      {game.lastMessage.payload.action.type.toLowerCase()}?
-                    </p>
-                    <div className="flex">
-                      {game.lastMessage.payload.action.type === "ForeignAid" &&
-                        Object.values(game.counteractions.foreignAid).map(
-                          (action) => (
-                            <Button
-                              key={`${action.type}-${action.blockedWith}`}
-                              className="mt-4 mr-4"
-                              onClick={action}
-                              disabled={action.isDisabled}
-                              destructive={action.isBluff}
-                            >
-                              {action.label}
-                            </Button>
-                          )
-                        )}
-                      {game.lastMessage.payload.action.type === "Steal" &&
-                        Object.values(game.counteractions.steal).map(
-                          (action) => (
-                            <Button
-                              key={`${action.type}-${action.blockedWith}`}
-                              className="mt-4 mr-4"
-                              onClick={action}
-                              disabled={action.isDisabled}
-                              destructive={action.isBluff}
-                            >
-                              {action.label}
-                            </Button>
-                          )
-                        )}
-                      {game.lastMessage.payload.action.type === "Assassinate" &&
-                        Object.values(game.counteractions.assassinate).map(
-                          (action) => (
-                            <Button
-                              key={`${action.type}-${action.blockedWith}`}
-                              className="mt-4 mr-4"
-                              onClick={action}
-                              disabled={action.isDisabled}
-                              destructive={action.isBluff}
-                            >
-                              {action.label}
-                            </Button>
-                          )
-                        )}
-                      <Button className="mt-4 mr-4" onClick={game.allow}>
-                        Don't Block
+              {game.yourStatus === "counteract" && (
+                <>
+                  <p>
+                    Want to block {game.activePlayer?.name}'s{" "}
+                    {game.currentAction?.type.toLowerCase()}?
+                  </p>
+                  <div className="flex">
+                    {game.counteractions.map((action) => (
+                      <Button
+                        key={`${action.type}-${action.with}`}
+                        className="mt-4 mr-4"
+                        onClick={action}
+                        disabled={action.isDisabled}
+                        destructive={action.isBluff}
+                      >
+                        {action.label}
                       </Button>
-                    </div>
-                  </>
-                )}
+                    ))}
+                    <Button className="mt-4 mr-4" onClick={game.allow}>
+                      Don't Block
+                    </Button>
+                  </div>
+                </>
+              )}
               {game.yourStatus === "chooseCardToLose" && (
                 <p>You must choose a card to lose.</p>
               )}

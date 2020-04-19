@@ -13,6 +13,7 @@ export type ClientMessage =
   | LeaveGameMessage
   | StartGameMessage
   | PlayerActionMessage
+  | SkipChallengeActionMessage
   | ChallengeActionMessage
   | BlockActionMessage
   | ConfirmActionMessage
@@ -68,6 +69,9 @@ export interface LoseCardMessage extends MessageData {
   type: "LoseCard";
   payload: {
     card: CardData;
+    action: {
+      id: string;
+    };
   };
 }
 
@@ -78,6 +82,9 @@ export const isLoseCardMessage = (
     type: "LoseCard",
     payload: {
       card,
+      action: {
+        id: "string",
+      },
     },
   });
 
@@ -97,6 +104,27 @@ export const isChooseCardsMessage = (
     payload: {
       chosenCards: "array",
       returnedCards: "array",
+    },
+  });
+
+export interface SkipChallengeActionMessage extends MessageData {
+  type: "SkipChallengeAction";
+  payload: {
+    action: {
+      id: string;
+    };
+  };
+}
+
+export const isSkipChallengeActionMessage = (
+  message: MessageData
+): message is SkipChallengeActionMessage =>
+  validate(message, {
+    type: "SkipChallengeAction",
+    payload: {
+      action: {
+        id: "string",
+      },
     },
   });
 

@@ -19,6 +19,13 @@ export const not = (needle: any) => (straw: any) => straw !== needle;
 export const pickRandom = (array: any[]) =>
   array[Math.floor(Math.random() * array.length)];
 
+export const getFutureDate = (ms: number) => {
+  const date = new Date();
+  date.setMilliseconds(date.getMilliseconds() + ms);
+
+  return date;
+};
+
 export type ShapeObjectValue =
   | string
   | "string"

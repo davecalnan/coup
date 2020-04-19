@@ -21,6 +21,7 @@ import {
   CardType,
   isPlayerMustChooseCardsMessage,
   isActionPendingMessage,
+  ActionData,
 } from "server/src";
 
 import { useLocalStorage } from "../hooks";
@@ -58,10 +59,8 @@ export type PlayerActions = {
 
 export type BlockActionMeta = {
   type: BlockActionMessage["payload"]["action"]["type"];
+  with: BlockActionMessage["payload"]["with"];
   label: string;
-  target: PlayerData;
-  player: PlayerData;
-  blockedWith: BlockActionMessage["payload"]["action"]["blockedWith"];
   isBluff: boolean;
   isDisabled: boolean;
 };
@@ -69,12 +68,6 @@ export type BlockActionMeta = {
 export type BlockAction = {
   (): void;
 } & BlockActionMeta;
-
-export type BlockActions = {
-  [key: string]: {
-    [key: string]: BlockAction;
-  };
-};
 
 export type Game = {
   ws: WebSocket | undefined;
@@ -89,7 +82,7 @@ export type Game = {
   hasEnoughPlayers: boolean;
   send: SendMessageFn;
   actions: PlayerActions;
-  counteractions: BlockActions;
+  counteractions: BlockAction[];
   allow: (() => void) | undefined;
   leave: () => void;
 } & Partial<MessageContext>;
@@ -104,19 +97,30 @@ export const useGame = (): Game => {
   const [context, setContext] = useState<MessageContext>();
   const [hand, setHand] = useState<CardData[]>();
 
+  const you = context?.you;
+  const currentAction = context?.currentAction;
+
   const isConnected =
     typeof WebSocket !== "undefined" && ws?.readyState === WebSocket.OPEN;
 
   const isYourTurn =
-    !!context?.activePlayer && context?.activePlayer.id === context?.you.id;
+    !!context?.activePlayer && context?.activePlayer.id === you?.id;
 
   const isCreator = !!context && context.creator.id === context.you.id;
   const hasEnoughPlayers =
     !!context && context?.players.length >= context?.minimumPlayers;
   const youCanStart = isCreator && hasEnoughPlayers;
 
+  const isYou = useCallback(
+    (maybeYou: PlayerData | undefined) => {
+      if (!you || !maybeYou) return undefined;
+
+      return maybeYou.id === you.id;
+    },
+    [you]
+  );
+
   const determinePlayerStatus = (): PlayerStatus => {
-    console.log("determinePlayerStatus:", { lastMessage, context });
     if (!lastMessage || !context) return "idle";
 
     if (context.status === "waitingForPlayers" && youCanStart) {
@@ -136,29 +140,24 @@ export const useGame = (): Game => {
     }
 
     if (
-      isAnyoneCanBlockMessage(lastMessage) &&
-      lastMessage.payload.action.player.id !== context.you.id
-    ) {
-      return "counteract";
-    }
-
-    if (
-      isPlayerCanBlockMessage(lastMessage) &&
-      lastMessage.payload.action.target.id === context.you.id
+      currentAction?.status === "awaitingBlock" &&
+      !isYou(currentAction?.player) &&
+      (currentAction?.canBeBlockedBy === "anyone" ||
+        isYou(currentAction?.canBeBlockedBy))
     ) {
       return "counteract";
     }
 
     if (
       isPlayerMustChooseCardToLoseMessage(lastMessage) &&
-      lastMessage.payload.player.id === context.you.id
+      isYou(lastMessage.payload.player)
     ) {
       return "chooseCardToLose";
     }
 
     if (
       isPlayerMustChooseCardsMessage(lastMessage) &&
-      lastMessage.payload.action.player.id === context.you.id
+      isYou(lastMessage.payload.action.player)
     ) {
       return "chooseCards";
     }
@@ -252,7 +251,7 @@ export const useGame = (): Game => {
   const hasCard = (type: CardType) => {
     if (!hand) return false;
 
-    return !hand
+    return !!hand
       .filter((card) => !card.isDead)
       .find((card) => card.type === type);
   };
@@ -272,27 +271,27 @@ export const useGame = (): Game => {
       type: "Tax",
       label: "Take Tax",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: hasCard("duke"),
+      isBluff: !hasCard("duke"),
     }),
     steal: createPlayerAction({
       type: "Steal",
       label: "Steal from a player",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: hasCard("captain"),
+      isBluff: !hasCard("captain"),
       needsTarget: true,
     }),
     assassinate: createPlayerAction({
       type: "Assassinate",
       label: "Assassinate a player",
       isDisabled: !isYourTurn || mustCoup || (context?.you.coins ?? 0) < 3,
-      isBluff: hasCard("assassin"),
+      isBluff: !hasCard("assassin"),
       needsTarget: true,
     }),
     exchange: createPlayerAction({
       type: "Exchange",
       label: "Exchange your cards",
       isDisabled: !isYourTurn || mustCoup,
-      isBluff: hasCard("ambassador"),
+      isBluff: !hasCard("ambassador"),
     }),
     coup: createPlayerAction({
       type: "Coup",
@@ -302,82 +301,63 @@ export const useGame = (): Game => {
     }),
   };
 
-  const createBlockAction = useCallback(
-    ({
-      type,
-      label,
-      target,
-      player,
-      blockedWith,
-      isBluff,
-      isDisabled,
-    }: BlockActionMeta): BlockAction =>
+  const counteractions = useMemo<BlockAction[]>(() => {
+    if (!currentAction) return [];
+
+    const createBlockAction = (
+      meta: Pick<BlockActionMeta, "with" | "isBluff">
+    ): BlockAction =>
       Object.assign(
         () =>
           send({
             type: "BlockAction",
             payload: {
+              with: meta.with,
               action: {
-                type,
-                target,
-                player,
-                blockedWith,
+                type: currentAction.type,
               },
             },
           } as BlockActionMessage),
-        { type, label, target, player, blockedWith, isBluff, isDisabled }
-      ),
-    [send]
-  );
+        {
+          ...meta,
+          type: currentAction.type as BlockActionMeta["type"],
+          label: `Block with ${meta.with
+            .split("")
+            .reduce(
+              (string, letter, index) =>
+                string + (index === 0 ? letter.toUpperCase() : letter),
+              ""
+            )}`,
+          isBluff: meta.isBluff,
+          isDisabled: yourStatus !== "counteract",
+        }
+      );
 
-  const counteractions: BlockActions = {
-    foreignAid: {
-      duke: createBlockAction({
-        type: "ForeignAid",
-        label: "Block with Duke",
-        target: context?.you as PlayerData,
-        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
-          ?.action?.player,
-        blockedWith: "duke",
-        isBluff: hasCard("duke"),
-        isDisabled: yourStatus !== "counteract",
-      }),
-    },
-    steal: {
-      captain: createBlockAction({
-        type: "Steal",
-        label: "Block with Captain",
-        target: context?.you as PlayerData,
-        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
-          ?.action?.player,
-        blockedWith: "captain",
-        isBluff: hasCard("captain"),
-        isDisabled: yourStatus !== "counteract",
-      }),
-      ambassador: createBlockAction({
-        type: "Steal",
-        label: "Block with Ambassador",
-        target: context?.you as PlayerData,
-        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
-          ?.action?.player,
-        blockedWith: "ambassador",
-        isBluff: hasCard("ambassador"),
-        isDisabled: yourStatus !== "counteract",
-      }),
-    },
-    assassinate: {
-      contessa: createBlockAction({
-        type: "Assassinate",
-        label: "Block with Contessa",
-        target: context?.you as PlayerData,
-        player: (lastMessage as WithContext<PlayerCanBlockMessage>)?.payload
-          ?.action?.player,
-        blockedWith: "contessa",
-        isBluff: hasCard("contessa"),
-        isDisabled: yourStatus !== "counteract",
-      }),
-    },
-  };
+    if (currentAction.type === "ForeignAid") {
+      return [createBlockAction({ with: "duke", isBluff: !hasCard("duke") })];
+    }
+
+    if (currentAction.type === "Steal") {
+      return [
+        createBlockAction({ with: "captain", isBluff: !hasCard("captain") }),
+        createBlockAction({
+          with: "ambassador",
+          isBluff: !hasCard("ambassador"),
+        }),
+      ];
+    }
+
+    if (currentAction.type === "Assassinate") {
+      return [
+        createBlockAction({
+          with: "contessa",
+          isBluff: !hasCard("contessa"),
+        }),
+      ];
+    }
+
+    return [];
+  }, [currentAction, yourStatus]);
 
   let allow = undefined;
 

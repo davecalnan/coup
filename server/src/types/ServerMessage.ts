@@ -33,6 +33,7 @@ export type ServerMessageWithoutContext =
   | PlayerMustChooseCardToLoseMessage
   | PlayerMustChooseCardsMessage
   | ActionPendingMessage
+  | ActionSucceededMessage
   | ActionCompletedMessage;
 
 export interface UnauthorisedActionMessage extends ServerMessageData {
@@ -240,10 +241,7 @@ export interface PlayerMustChooseCardsMessage extends ServerMessageData {
   type: "PlayerMustChooseCards";
   payload: {
     cards: CardData[];
-    action: {
-      type: "Exchange";
-      player: PlayerData;
-    };
+    action: ActionData;
   };
 }
 
@@ -280,6 +278,28 @@ export const isActionPendingMessage = (
         type: "string",
         player,
         challengeBefore: "string",
+      },
+    },
+  });
+
+export interface ActionSucceededMessage extends MessageData {
+  type: "ActionSucceeded";
+  payload: {
+    action: ActionData;
+  };
+}
+
+export const isActionSucceededMessage = (
+  message: MessageData
+): message is ActionSucceededMessage =>
+  validate(message, {
+    type: "ActionSucceeded",
+    payload: {
+      action: {
+        id: "string",
+        status: "string",
+        type: "string",
+        player,
       },
     },
   });

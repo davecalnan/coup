@@ -38,10 +38,15 @@ import {
   ChooseCardsMessage,
   AssassinatePlayerAction,
   CoupPlayerAction,
+  IncomeAction,
   TaxAction,
+  StealAction,
+  isChallengeActionMessage,
+  ForeignAidAction,
+  isSkipChallengeActionMessage,
 } from "./";
-import { IncomeAction } from "./Action";
-import { isChallengeActionMessage } from "./types";
+import { AssassinateAction, ExchangeAction, ActionData } from "./Actions";
+import { CoupAction } from "./Actions/Coup";
 
 export type UniqueBroadcastFunction = (
   player: Player
@@ -58,6 +63,8 @@ export type RoomData = {
   players: PlayerData[];
   activePlayer: PlayerData | undefined;
   winner: PlayerData | undefined;
+
+  currentAction: ActionData | undefined;
 };
 
 export type RoomConstructor = {
@@ -200,6 +207,7 @@ export class Room {
 
   nextTurn = () => {
     const player = this.cycleActivePlayer();
+    this.currentAction = undefined;
 
     this.broadcast({
       type: "NewTurn",
@@ -280,15 +288,6 @@ export class Room {
   findCard = (target: CardData) =>
     this.deck.allCards.find((card) => card.id === target.id);
 
-  createAction = (type: Action["type"], player: Player) => {
-    if (type === "Income") {
-      return (this.currentAction = new IncomeAction({ room: this, player }));
-    }
-    if (type === "Tax") {
-      return (this.currentAction = new TaxAction({ room: this, player }));
-    }
-  };
-
   handlePlayerAction = (message: PlayerActionMessage, player: Player) => {
     if (player !== this.activePlayer) {
       return player.send({
@@ -326,73 +325,107 @@ export class Room {
       }
     }
 
-    if (isIncomePlayerAction(message) || isTaxPlayerAction(message)) {
-      this.createAction(message.payload.action.type, player);
+    if (isIncomePlayerAction(message)) {
+      this.currentAction = new IncomeAction({
+        room: this,
+        player,
+      });
     }
-
     if (isForeignAidPlayerAction(message)) {
-      return this.broadcast({
-        type: "AnyoneCanBlock",
-        payload: {
-          action: {
-            type: message.payload.action.type,
-            player: player.toJson(),
-          },
-        },
+      this.currentAction = new ForeignAidAction({ room: this, player });
+    }
+
+    if (isTaxPlayerAction(message)) {
+      this.currentAction = new TaxAction({
+        room: this,
+        player,
       });
     }
 
-    if (isStealPlayerAction(message) || isAssassinatePlayerAction(message)) {
-      return this.broadcast({
-        type: "PlayerCanBlock",
-        payload: {
-          action: {
-            type: message.payload.action.type,
-            target: message.payload.action.target,
-            player: player.toJson(),
+    if (isStealPlayerAction(message)) {
+      const target = this.findPlayer(message.payload.action.target);
+
+      if (!target) {
+        return player.send({
+          type: "UnauthorisedAction",
+          payload: {
+            message: `Invalid target.`,
           },
-        },
+        });
+      }
+
+      this.currentAction = new StealAction({
+        room: this,
+        player,
+        target,
       });
     }
+
+    if (isAssassinatePlayerAction(message)) {
+      const target = this.findPlayer(message.payload.action.target);
+
+      if (!target) {
+        return player.send({
+          type: "UnauthorisedAction",
+          payload: {
+            message: `Invalid target.`,
+          },
+        });
+      }
+
+      this.currentAction = new AssassinateAction({
+        room: this,
+        player,
+        target,
+      });
+    }
+
+    // if (isStealPlayerAction(message) || isAssassinatePlayerAction(message)) {
+    //   return this.broadcast({
+    //     type: "PlayerCanBlock",
+    //     payload: {
+    //       action: {
+    //         type: message.payload.action.type,
+    //         target: message.payload.action.target,
+    //         player: player.toJson(),
+    //       },
+    //     },
+    //   });
+    // }
 
     if (isExchangePlayerAction(message)) {
-      return this.broadcast({
-        type: "PlayerMustChooseCards",
-        payload: {
-          action: {
-            type: "Exchange",
-            player: player.toJson(),
-          },
-          cards: this.deck.cards.slice(0, 2).map((card) => card.toJson()),
-        },
-      });
+      this.currentAction = new ExchangeAction({ room: this, player });
     }
 
     if (isCoupPlayerAction(message)) {
-      player.updateCoinsBy(-7);
+      const target = this.findPlayer(message.payload.action.target);
 
-      // return this.broadcast({
-      //   type: "PlayerMustChooseCardToLose",
-      //   payload: {
-      //     player: message.payload.action.target,
-      //     action: {
-      //       type: "Coup",
-      //       target: message.payload.action.target,
-      //       player: player.toJson(),
-      //     },
-      //   },
-      // } as PlayerMustChooseCardToLoseMessage);
+      if (!target) {
+        return player.send({
+          type: "UnauthorisedAction",
+          payload: {
+            message: `Invalid target.`,
+          },
+        });
+      }
+
+      this.currentAction = new CoupAction({
+        room: this,
+        player,
+        target,
+      });
     }
   };
 
   handleBlockAction = (message: BlockActionMessage, player: Player) => {
-    if (isBlockStealAction(message)) {
-      this.findPlayer(message.payload.action.player)?.updateCoinsBy(-2);
-    }
+    this.currentAction?.block(message.payload.with);
+    // if (isBlockStealAction(message)) {
+    //   this.findPlayer(message.payload.action.player)?.updateCoinsBy(-2);
+    // }
 
-    if (isBlockAssassinateAction(message)) {
-      this.findPlayer(message.payload.action.player)?.updateCoinsBy(-3);
-    }
+    // if (isBlockAssassinateAction(message)) {
+    //   this.findPlayer(message.payload.action.player)?.updateCoinsBy(-3);
+    // }
 
     this.nextTurn();
   };
@@ -443,6 +476,10 @@ export class Room {
       return this.endGame();
     }
 
+    if (this.currentAction?.status === "challengeFailed") {
+      return this.currentAction.complete();
+    }
+
     this.nextTurn();
   };
 
@@ -481,6 +518,10 @@ export class Room {
       this.handlePlayerAction(message, player);
     }
 
+    if (isSkipChallengeActionMessage(message)) {
+      this.currentAction?.skipChallenge(player);
+    }
+
     if (isChallengeActionMessage(message)) {
       this.currentAction?.challenge(player);
     }
@@ -511,5 +552,7 @@ export class Room {
     players: this.players.map((player) => player.toJson()),
     activePlayer: this.activePlayer?.toJson(),
     winner: this.winner?.toJson(),
+
+    currentAction: this.currentAction?.toJson(),
   });
 }

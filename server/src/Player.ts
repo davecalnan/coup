@@ -99,6 +99,13 @@ export class Player {
     card.kill();
   };
 
+  hasA = (type: Card["type"]) =>
+    !!this.cards
+      .filter((card) => !card.isDead)
+      .find((card) => card.type === type);
+
+  doesntHaveA = (type: Card["type"]) => !this.hasA(type);
+
   setHand = (cards: Card[]) => {
     console.log(
       "[WSS] Setting hand to:",

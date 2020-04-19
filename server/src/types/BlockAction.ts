@@ -8,11 +8,10 @@ export type BlockActionMessage =
 export interface BaseBlockAction extends MessageData {
   type: "BlockAction";
   payload: {
+    with: BlockActionMessage["payload"]["with"];
     action: {
+      id: string;
       type: BlockActionMessage["payload"]["action"]["type"];
-      target?: PlayerData;
-      player: PlayerData;
-      blockedWith: BlockActionMessage["payload"]["action"]["blockedWith"];
     };
   };
 }
@@ -23,21 +22,20 @@ export const isBlockActionMessage = (
   validate(message, {
     type: "BlockAction",
     payload: {
+      with: "string",
       action: {
+        id: "string",
         type: "string",
-        target: player,
-        player,
-        blockedWith: "string",
       },
     },
   });
 
 export interface BlockForeignAidAction extends BaseBlockAction {
   payload: {
+    with: "duke";
     action: {
+      id: string;
       type: "ForeignAid";
-      player: PlayerData;
-      blockedWith: "duke";
     };
   };
 }
@@ -48,21 +46,20 @@ export const isBlockForeignAidAction = (
   validate(message, {
     type: "BlockAction",
     payload: {
+      with: "duke",
       action: {
-        type: "ForeignAid",
-        player,
-        blockedWith: "string",
+        id: "string",
+        type: "ForeignAidAction",
       },
     },
   });
 
 export interface BlockStealAction extends BaseBlockAction {
   payload: {
+    with: "captain" | "ambassador";
     action: {
+      id: string;
       type: "Steal";
-      target: PlayerData;
-      player: PlayerData;
-      blockedWith: "captain" | "ambassador";
     };
   };
 }
@@ -73,22 +70,20 @@ export const isBlockStealAction = (
   validate(message, {
     type: "BlockAction",
     payload: {
+      with: "string",
       action: {
+        id: "string",
         type: "Steal",
-        target: player,
-        player,
-        blockedWith: "string",
       },
     },
   });
 
 export interface BlockAssassinateAction extends BaseBlockAction {
   payload: {
+    with: "contessa";
     action: {
+      id: string;
       type: "Assassinate";
-      target: PlayerData;
-      player: PlayerData;
-      blockedWith: "contessa";
     };
   };
 }
@@ -99,11 +94,10 @@ export const isBlockAssassinateAction = (
   validate(message, {
     type: "BlockAction",
     payload: {
+      with: "contessa",
       action: {
+        id: "string",
         type: "Assassinate",
-        target: player,
-        player,
-        blockedWith: "string",
       },
     },
   });

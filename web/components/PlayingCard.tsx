@@ -1,7 +1,7 @@
 import React from "react";
 import classNames from "classnames";
 
-import { CardData } from "server/src";
+import { CardData, isPlayerMustChooseCardToLoseMessage } from "server/src";
 
 import { useGameContext } from "../hooks";
 import { Button } from "./";
@@ -27,7 +27,20 @@ export const PlayingCard = ({ card, className }: PlayingCardProps) => {
     .map((letter, index) => (index === 0 ? letter.toUpperCase() : letter))
     .join("");
 
-  const loseCard = () => game.send({ type: "LoseCard", payload: { card } });
+  const loseCard = () => {
+    if (
+      !(
+        game.lastMessage &&
+        isPlayerMustChooseCardToLoseMessage(game.lastMessage)
+      )
+    )
+      return;
+
+    game.send({
+      type: "LoseCard",
+      payload: { card, action: { id: game.lastMessage.payload.action.id } },
+    });
+  };
 
   const toggleCardChosen = () => {
     if (game?.toggleCardChosen) {
